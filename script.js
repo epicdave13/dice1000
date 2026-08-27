@@ -17,14 +17,14 @@ const database = firebase.database();
 
 const urlParams = new URLSearchParams(window.location.search);
 let roomID = urlParams.get('room');
-let myPlayerIndex = urlParams.get('player');
+let myPlayerIndex = urlParams.get('player'); 
 
 if (!roomID) {
     roomID = Math.floor(1000 + Math.random() * 9000);
-    myPlayerIndex = 0;
+    myPlayerIndex = 0; 
     window.history.pushState({}, '', `?room=${roomID}&player=0`);
 } else if (myPlayerIndex === null) {
-    myPlayerIndex = 1;
+    myPlayerIndex = 1; 
     window.history.pushState({}, '', `?room=${roomID}&player=1`);
 }
 
@@ -57,7 +57,7 @@ let gameState = {
         { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
         { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
         { hidden: true, locked: false, rx: 0, ry: 0, value: 1 }
-    ],
+    ], 
     selectedDiceIds: [false, false, false, false, false]
 };
 
@@ -101,10 +101,6 @@ if (!document.getElementById('game-ui')) {
     uiDiv.style.flexDirection = 'column';
     uiDiv.style.alignItems = 'center';
     uiDiv.innerHTML = `
-        <div id="room-link-info" style="font-size:14px; background:#00000040; padding:10px; border-radius:8px; margin-bottom:15px; text-align:center; width:90%; max-width:400px; box-sizing:border-box;">
-            Комната: <b>${roomID}</b><br>
-            <span style="font-size:12px; color:#aaa;">Отправьте полную ссылку из браузера другу.</span>
-        </div>
         <table class="score-table">
             <thead><tr><th>Игрок</th><th>Счет</th><th>Болты</th><th>Статус</th></tr></thead>
             <tbody id="score-table-body"></tbody>
@@ -138,8 +134,8 @@ function calculateDiceScore(diceObjects) {
     let scoringIndices = [];
 
     if (diceObjects.length === 5) {
-        let isSmallStraight = Object.values(counts).slice(0, 5).every(v => v === 1);
-        let isBigStraight = Object.values(counts).slice(1, 6).every(v => v === 1);
+        let isSmallStraight = Object.values(counts).slice(0,5).every(v => v === 1);
+        let isBigStraight = Object.values(counts).slice(1,6).every(v => v === 1);
 
         if (isBigStraight) {
             return { score: 250, scoringDiceCount: 5, scoringIndices: diceObjects.map(d => d.index) };
@@ -159,7 +155,7 @@ function calculateDiceScore(diceObjects) {
         if (count >= 3) {
             handledNums[num] = true;
             scoringDiceCount += count;
-
+            
             diceObjects.forEach(d => {
                 if (d.value === num) scoringIndices.push(d.index);
             });
@@ -167,11 +163,11 @@ function calculateDiceScore(diceObjects) {
             if (count === 5) {
                 let nominal = (num === 1) ? 10 : num;
                 score += nominal * 100;
-            }
+            } 
             else if (count === 4) {
                 let tripleValue = (num === 1) ? 100 : num * 10;
                 score += tripleValue * 2;
-            }
+            } 
             else if (count === 3) {
                 score += (num === 1) ? 100 : num * 10;
             }
@@ -179,7 +175,7 @@ function calculateDiceScore(diceObjects) {
     }
 
     diceObjects.forEach(d => {
-        if (handledNums[d.value]) return;
+        if (handledNums[d.value]) return; 
 
         if (d.value === 1) {
             score += 10;
@@ -203,7 +199,7 @@ gameRef.on('value', (snapshot) => {
     }
 
     gameState = data;
-
+    
     for (let i = 0; i < 5; i++) {
         const scene = document.getElementById(`scene-${i}`);
         const cube = document.getElementById(`cube-${i}`);
@@ -238,33 +234,33 @@ gameRef.on('value', (snapshot) => {
 
 function toggleSelect(id) {
     if (gameState.currentPlayer !== myPlayerIndex) return;
-    if (gameState.mustConfirm) return;
+    if (gameState.mustConfirm) return; 
 
     let isDiceFromCurrentRoll = gameState.lastRollDiceObjects.some(d => d.index === id);
     if (!isDiceFromCurrentRoll && !gameState.isFirstRollInTurn) {
         showToast("Этот кубик отложен на предыдущем броске, его нельзя вернуть в игру!", "warning");
-        return;
+        return; 
     }
-
+    
     gameState.selectedDiceIds[id] = !gameState.selectedDiceIds[id];
     recalculateScoreFromSelected();
 }
 
 function recalculateScoreFromSelected() {
     let currentlySelectedObjects = [];
-
+    
     gameState.lastRollDiceObjects.forEach(d => {
         if (gameState.selectedDiceIds[d.index]) {
             currentlySelectedObjects.push(d);
         }
     });
-
+    
     const calculation = calculateDiceScore(currentlySelectedObjects);
     let previousTurnsScore = gameState.turnScore - (gameState.lastCalculatedScore || 0);
-
+    
     gameState.lastCalculatedScore = calculation.score;
     gameState.turnScore = previousTurnsScore + calculation.score;
-
+    
     gameRef.update({
         selectedDiceIds: gameState.selectedDiceIds,
         turnScore: gameState.turnScore,
@@ -293,7 +289,7 @@ function rollAll() {
     let activeIndices = [];
 
     if (gameState.isFirstRollInTurn) {
-        gameState.turnScore = 0;
+        gameState.turnScore = 0; 
         gameState.lastCalculatedScore = 0;
         gameState.lastRollDiceObjects = [];
         for (let i = 0; i < 5; i++) {
@@ -322,7 +318,7 @@ function rollAll() {
     activeIndices.forEach(idx => {
         const result = Math.floor(Math.random() * 6) + 1;
         diceObjects.push({ index: idx, value: result });
-
+        
         gameState.diceVisuals[idx].rx = (Math.floor(Math.random() * 4) + 2) * 360;
         gameState.diceVisuals[idx].ry = (Math.floor(Math.random() * 4) + 2) * 360;
         gameState.diceVisuals[idx].value = result;
@@ -346,7 +342,7 @@ function rollAll() {
 
         if (calculation.score === 0) {
             let message = `Выпало 0 очков! Ход переходит к сопернику.`;
-
+            
             if (gameState.isFirstRollInTurn && activePlayer.totalScore >= 50 && !isPlayerOnBarrel(activePlayer.totalScore)) {
                 activePlayer.bolts++;
                 message = `Ноль очков! Вы получаете БОЛТ.`;
@@ -356,7 +352,7 @@ function rollAll() {
                     message += ` Три болта превращаются в минус 100 очков!`;
                 }
             }
-
+            
             showToast(message, "danger");
             endTurn(false);
             return;
@@ -393,7 +389,7 @@ function bankScore() {
         showToast("Вы не можете записать очки сейчас! Требуется подтверждающий бросок.", "warning");
         return;
     }
-
+    
     let selectedCountFromLastRoll = 0;
     gameState.lastRollDiceObjects.forEach(d => {
         if (gameState.selectedDiceIds[d.index]) {
@@ -416,8 +412,8 @@ function endTurn(saveScore) {
 
     if (saveScore) {
         if (!player.hasEnteredGame && gameState.turnScore < 50) {
-            showToast(`Чтобы открыть счет в игре, нужно набрать минимум 50 очков за один ход! У вас сейчас: ${gameState.turnScore}`, "warning");
-            return;
+            showToast("Чтобы открыть счет в игре, нужно набрать минимум 50 очков за один ход!", "warning");
+            return; 
         }
 
         if (!player.hasEnteredGame && gameState.turnScore >= 50) {
@@ -427,16 +423,16 @@ function endTurn(saveScore) {
         let proposedScore = player.totalScore + gameState.turnScore;
 
         if (player.totalScore >= 200 && player.totalScore < 300 && proposedScore < 300) {
-            showToast(`Вы застряли на бочке (${player.totalScore})! Нельзя записать мелкую сумму. Вам нужно вырваться за 300! Сейчас было бы: ${proposedScore}`, "warning");
+            showToast(`Вы застряли на бочке (${player.totalScore})! Нельзя записать мелкую сумму. Вам нужно вырваться за 300!`, "warning");
             return;
         }
         if (player.totalScore >= 600 && player.totalScore < 700 && proposedScore < 700) {
-            showToast(`Вы застряли на бочке (${player.totalScore})! Нельзя записать мелкую сумму. Вам нужно вырваться за 700! Сейчас было бы: ${proposedScore}`, "warning");
+            showToast(`Вы застряли на бочке (${player.totalScore})! Нельзя записать мелкую сумму. Вам нужно вырваться за 700!`, "warning");
             return;
         }
 
         if (player.totalScore >= 880 && player.totalScore < 1000 && proposedScore < 1000) {
-            showToast(`Вы в капкане финальной бочки (${player.totalScore})! Запись мелких очков заблокирована. Вам нужно выбить ровно 1000 или больше! Сейчас было бы: ${proposedScore}`, "warning");
+            showToast(`Вы в капкане финальной бочки (${player.totalScore})! Запись мелких очков заблокирована. Вам нужно выбить ровно 1000 или больше!`, "warning");
             return;
         }
 
@@ -447,7 +443,7 @@ function endTurn(saveScore) {
             showToast(`Вы попали на БОЧКУ (Счет: ${proposedScore})! В следующий ход придется добирать до 700.`, "warning");
         }
         else if (player.totalScore < 880 && proposedScore >= 880 && proposedScore < 1000) {
-            player.barrelAttempts = 0;
+            player.barrelAttempts = 0; 
             showToast(`ВХОД НА ФИНАЛЬНУЮ БОЧКУ! (Счет: ${proposedScore}). У вас есть ровно 3 хода, чтобы закончить игру!`, "warning");
         }
 
@@ -473,8 +469,8 @@ function endTurn(saveScore) {
         if (player.totalScore >= 880 && player.totalScore < 1000) {
             player.barrelAttempts++;
             if (player.barrelAttempts >= 3) {
-                player.totalScore -= 100;
-                player.barrelAttempts = 0;
+                player.totalScore -= 100; 
+                player.barrelAttempts = 0; 
                 showToast("3 попытки на финальной бочке истекли! Штраф минус 100 очков и вы слетаете с бочки.", "danger");
             } else {
                 showToast(`Ход сгорел! Использована попытка на финальной бочке. Осталось попыток: ${3 - player.barrelAttempts}`, "warning");
@@ -503,8 +499,8 @@ function isPlayerOnBarrel(score) {
 }
 
 function checkOvertake() {
-    const p0 = gameState.players;
-    const p1 = gameState.players;
+    const p0 = gameState.players[0];
+    const p1 = gameState.players[1];
 
     if (gameState.currentPlayer === 0) {
         let oldP0 = p0.totalScore - gameState.turnScore;
@@ -538,15 +534,15 @@ function showToast(message, type = 'info') {
 }
 
 function updateUI() {
-    const p0 = gameState.players;
-    const p1 = gameState.players;
+    const p0 = gameState.players[0];
+    const p1 = gameState.players[1];
     const activeIndex = gameState.currentPlayer;
 
     const p0Name = (myPlayerIndex === 0) ? "Вы" : "Создатель";
     const p1Name = (myPlayerIndex === 1) ? "Вы (Друг)" : "Друг";
 
     document.getElementById('player-turn').innerText = `Ход: ${activeIndex === myPlayerIndex ? 'ВАШ ХОД!' : 'Ожидайте соперника...'}`;
-
+    
     const rollBtn = document.getElementById('roll-btn');
     const bankBtn = document.getElementById('bank-btn');
     if (activeIndex === myPlayerIndex) {
@@ -596,7 +592,7 @@ function updateUI() {
     `;
 
     document.getElementById('turn-status').innerText = `Очки за ход: ${gameState.turnScore}`;
-
+    
     if (gameState.mustConfirm) {
         bankBtn.style.backgroundColor = '#7f8c8d';
         bankBtn.innerText = 'ПОДТВЕРДИТЕ БРОСКОМ';
@@ -606,10 +602,9 @@ function updateUI() {
     }
 }
 
-// ТОЧНЫЙ СБРОС СЧЕТА
 function resetGame() {
-    gameState.players.totalScore = 0; gameState.players.bolts = 0; gameState.players.barrelAttempts = 0; gameState.players.hasEnteredGame = false;
-    gameState.players.totalScore = 0; gameState.players.bolts = 0; gameState.players.barrelAttempts = 0; gameState.players.hasEnteredGame = false;
+    gameState.players[0].totalScore = 0; gameState.players[0].bolts = 0; gameState.players[0].barrelAttempts = 0; gameState.players[0].hasEnteredGame = false;
+    gameState.players[1].totalScore = 0; gameState.players[1].bolts = 0; gameState.players[1].barrelAttempts = 0; gameState.players[1].hasEnteredGame = false;
     gameState.currentPlayer = 0; gameState.turnScore = 0;
     gameState.isFirstRollInTurn = true; gameState.mustConfirm = false;
     gameState.lastRollDiceObjects = []; gameState.lastCalculatedScore = 0;
