@@ -1,5 +1,5 @@
 // ==========================================
-// 1. ИНИЦИАЛИЗАЦИЯ FIREBASE И СОСТОЯНИЯ
+// 1. НАСТРОЙКИ, СОСТОЯНИЕ И ГЕНЕРАЦИЯ UI
 // ==========================================
 
 const firebaseConfig = {
@@ -12,6 +12,7 @@ const firebaseConfig = {
     measurementId: "G-NSPFDRDEDY"
 };
 
+// Запуск Firebase
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
@@ -121,8 +122,9 @@ if (!document.getElementById('bank-btn')) {
     bankBtn.onclick = bankScore;
     document.getElementById('roll-btn').parentNode.appendChild(bankBtn);
 }
+
 // ==========================================
-// 2. МАТЕМАТИКА И СЕТЕВАЯ СИНХРОНИЗАЦИЯ
+// 2. МАТЕМАТИКА И АНАЛИЗ КОМБИНАЦИЙ
 // ==========================================
 
 function calculateDiceScore(diceObjects) {
@@ -412,7 +414,7 @@ function endTurn(saveScore) {
 
     if (saveScore) {
         if (!player.hasEnteredGame && gameState.turnScore < 50) {
-            showToast("Чтобы открыть счет в игре, нужно набрать минимум 50 очков за один ход!", "warning");
+            showToast(`Чтобы открыть счет в игре, нужно набрать минимум 50 очков за один ход! У вас сейчас: ${gameState.turnScore}`, "warning");
             return; 
         }
 
@@ -423,16 +425,16 @@ function endTurn(saveScore) {
         let proposedScore = player.totalScore + gameState.turnScore;
 
         if (player.totalScore >= 200 && player.totalScore < 300 && proposedScore < 300) {
-            showToast(`Вы застряли на бочке (${player.totalScore})! Нельзя записать мелкую сумму. Вам нужно вырваться за 300!`, "warning");
+            showToast(`Вы застряли на бочке (${player.totalScore})! Нельзя записать мелкую сумму. Вам нужно вырваться за 300! Сейчас было бы: ${proposedScore}`, "warning");
             return;
         }
         if (player.totalScore >= 600 && player.totalScore < 700 && proposedScore < 700) {
-            showToast(`Вы застряли на бочке (${player.totalScore})! Нельзя записать мелкую сумму. Вам нужно вырваться за 700!`, "warning");
+            showToast(`Вы застряли на бочке (${player.totalScore})! Нельзя записать мелкую сумму. Вам нужно вырваться за 700! Сейчас было бы: ${proposedScore}`, "warning");
             return;
         }
 
         if (player.totalScore >= 880 && player.totalScore < 1000 && proposedScore < 1000) {
-            showToast(`Вы в капкане финальной бочки (${player.totalScore})! Запись мелких очков заблокирована. Вам нужно выбить ровно 1000 или больше!`, "warning");
+            showToast(`Вы в капкане финальной бочки (${player.totalScore})! Запись мелких очков заблокирована. Вам нужно выбить ровно 1000 или больше! Сейчас было бы: ${proposedScore}`, "warning");
             return;
         }
 
@@ -498,6 +500,7 @@ function isPlayerOnBarrel(score) {
     return false;
 }
 
+// Проверка обгонов
 function checkOvertake() {
     const p0 = gameState.players[0];
     const p1 = gameState.players[1];
@@ -517,6 +520,7 @@ function checkOvertake() {
     }
 }
 
+// Плавающие Тосты
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -533,6 +537,7 @@ function showToast(message, type = 'info') {
     }, 3000);
 }
 
+// Рендеринг таблицы счета
 function updateUI() {
     const p0 = gameState.players[0];
     const p1 = gameState.players[1];
