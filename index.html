@@ -1,18 +1,16 @@
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>1000 на костях ONLINE</title>
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
     <!-- Контейнер для уведомлений -->
-    <div id="toast-container"></div>
+    <div id="toast-container"></div> 
 
-    <!-- Игровое поле -->
+    <!-- Игровое поле, куда JS добавит кубики -->
     <div class="board" id="game-board"></div>
 
     <!-- Кнопки управления -->
@@ -20,12 +18,29 @@
         <button class="btn" id="roll-btn" onclick="rollAll()">БРОСИТЬ</button>
     </div>
 
-    <!-- ПОДКЛЮЧАЕМ FIREBASE SDK (ВЕРСИЯ 9+) -->
+    <!-- ПОДКЛЮЧАЕМ СТАБИЛЬНЫЕ СКРИПТЫ FIREBASE COMPAT SDK -->
     <script src="https://gstatic.com"></script>
     <script src="https://gstatic.com"></script>
 
-    <!-- Ваша игровая логика -->
+    <!-- ОТЛАДЧИК ОШИБОК: если JS упадет, мы увидим причину прямо на экране смартфона -->
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            const errDiv = document.createElement('div');
+            errDiv.style.position = 'fixed';
+            errDiv.style.bottom = '10px';
+            errDiv.style.left = '10px';
+            errDiv.style.background = 'red';
+            errDiv.style.color = 'white';
+            errDiv.style.padding = '10px';
+            errDiv.style.fontSize = '12px';
+            errDiv.style.zIndex = '9999';
+            errDiv.innerText = "Ошибка: " + message + " (Строка: " + lineno + ")";
+            document.body.appendChild(errDiv);
+            return false;
+        };
+    </script>
+
+    <!-- Подключаем вашу игровую логику -->
     <script src="script.js"></script>
 </body>
-
 </html>
