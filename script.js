@@ -16,7 +16,6 @@ let gameRef;
 let roomID;
 let myPlayerIndex;
 
-// Локальная копия состояния игры (будет синхронизироваться с облаком)
 let gameState = {
     currentPlayer: 0,
     players: [
@@ -38,7 +37,33 @@ let gameState = {
     selectedDiceIds: [false, false, false, false, false]
 };
 
-// ЖДЕМ ПОЛНОЙ ЗАГРУЗКИ БИБЛИОТЕК FIREBASE ИЗ ИНТЕРНЕТА
+const cubeTemplate = (id) => `
+    <div class="scene hidden" id="scene-${id}" onclick="toggleSelect(${id})">
+        <div class="cube" id="cube-${id}">
+            <div class="face front"><div class="dot"></div></div>
+            <div class="face back six">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            </div>
+            <div class="face right three">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            </div>
+            <div class="face left four">
+                <div class="dot"></div><div class="dot"></div>
+                <div class="dot"></div><div class="dot"></div>
+            </div>
+            <div class="face top two">
+                <div class="dot"></div><div class="dot"></div>
+            </div>
+            <div class="face bottom five">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                <div class="dot"></div><div class="dot"></div>
+            </div>
+        </div>
+    </div>
+`;
+
+// ЗАПУСК ИГРЫ СТРОГО ПОСЛЕ ЗАГРУЗКИ ВСЕХ СКРИПТОВ ИЗ СЕТИ
 window.onload = function() {
     const firebaseConfig = {
         apiKey: "AIzaSyApx6yyxu4avuWzOInTasy-hFMge7IUrV8",
@@ -69,73 +94,49 @@ window.onload = function() {
     myPlayerIndex = parseInt(myPlayerIndex);
     gameRef = database.ref(`rooms/${roomID}`);
 
+    // Генерируем элементы интерфейса на экране
+    const board = document.getElementById('game-board');
+    for (let i = 0; i < 5; i++) {
+        board.innerHTML += cubeTemplate(i);
+    }
+
+    if (!document.getElementById('game-ui')) {
+        const uiDiv = document.createElement('div');
+        uiDiv.id = 'game-ui';
+        uiDiv.style.margin = '0 0 20px 0';
+        uiDiv.style.width = '100%';
+        uiDiv.style.display = 'flex';
+        uiDiv.style.flexDirection = 'column';
+        uiDiv.style.alignItems = 'center';
+        uiDiv.innerHTML = `
+            <table class="score-table">
+                <thead><tr><th>Игрок</th><th>Счет</th><th>Болты</th><th>Статус</th></tr></thead>
+                <tbody id="score-table-body"></tbody>
+            </table>
+            <div id="room-link-info" style="font-size:14px; background:#00000040; padding:10px; border-radius:8px; margin: 15px 0 5px 0; text-align:center; width:90%; max-width:400px; box-sizing:border-box;">
+                Комната: <b id="room-display">Подключение...</b><br>
+                <span style="font-size:12px; color:#aaa;">Отправьте полную ссылку из браузера другу.</span>
+            </div>
+            <div id="player-turn" style="font-weight:bold; color:#f1c40f; margin-bottom: 5px; font-size:20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Подключение...</div>
+            <div id="turn-status" style="color:#2ecc71; font-size: 18px; font-weight: bold; margin-bottom: 20px;">Очки за ход: 0</div>
+        `;
+        document.body.prepend(uiDiv);
+    }
+
+    if (!document.getElementById('bank-btn')) {
+        const bankBtn = document.createElement('button');
+        bankBtn.id = 'bank-btn';
+        bankBtn.className = 'btn';
+        bankBtn.style.backgroundColor = '#2ecc71';
+        bankBtn.style.marginTop = '10px';
+        bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
+        bankBtn.onclick = bankScore;
+        document.getElementById('roll-btn').parentNode.appendChild(bankBtn);
+    }
+
+    // Запускаем сетевую синхронизацию
     initNetworkSnyc();
 };
-
-const cubeTemplate = (id) => `
-    <div class="scene hidden" id="scene-${id}" onclick="toggleSelect(${id})">
-        <div class="cube" id="cube-${id}">
-            <div class="face front"><div class="dot"></div></div>
-            <div class="face back six">
-                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            </div>
-            <div class="face right three">
-                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            </div>
-            <div class="face left four">
-                <div class="dot"></div><div class="dot"></div>
-                <div class="dot"></div><div class="dot"></div>
-            </div>
-            <div class="face top two">
-                <div class="dot"></div><div class="dot"></div>
-            </div>
-            <div class="face bottom five">
-                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-                <div class="dot"></div><div class="dot"></div>
-            </div>
-        </div>
-    </div>
-`;
-
-const board = document.getElementById('game-board');
-for (let i = 0; i < 5; i++) {
-    board.innerHTML += cubeTemplate(i);
-}
-
-if (!document.getElementById('game-ui')) {
-    const uiDiv = document.createElement('div');
-    uiDiv.id = 'game-ui';
-    uiDiv.style.margin = '0 0 20px 0';
-    uiDiv.style.width = '100%';
-    uiDiv.style.display = 'flex';
-    uiDiv.style.flexDirection = 'column';
-    uiDiv.style.alignItems = 'center';
-    uiDiv.innerHTML = `
-        <table class="score-table">
-            <thead><tr><th>Игрок</th><th>Счет</th><th>Болты</th><th>Статус</th></tr></thead>
-            <tbody id="score-table-body"></tbody>
-        </table>
-        <div id="room-link-info" style="font-size:14px; background:#00000040; padding:10px; border-radius:8px; margin: 15px 0 5px 0; text-align:center; width:90%; max-width:400px; box-sizing:border-box;">
-            Комната: <b id="room-display">Подключение...</b><br>
-            <span style="font-size:12px; color:#aaa;">Отправьте полную ссылку из браузера другу.</span>
-        </div>
-        <div id="player-turn" style="font-weight:bold; color:#f1c40f; margin-bottom: 5px; font-size:20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Подключение...</div>
-        <div id="turn-status" style="color:#2ecc71; font-size: 18px; font-weight: bold; margin-bottom: 20px;">Очки за ход: 0</div>
-    `;
-    document.body.prepend(uiDiv);
-}
-
-if (!document.getElementById('bank-btn')) {
-    const bankBtn = document.createElement('button');
-    bankBtn.id = 'bank-btn';
-    bankBtn.className = 'btn';
-    bankBtn.style.backgroundColor = '#2ecc71';
-    bankBtn.style.marginTop = '10px';
-    bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
-    bankBtn.onclick = bankScore;
-    document.getElementById('roll-btn').parentNode.appendChild(bankBtn);
-}
 // ==========================================
 // 2. МАТЕМАТИКА И СЕТЕВАЯ СИНХРОНИЗАЦИЯ
 // ==========================================
@@ -221,6 +222,8 @@ function initNetworkSnyc() {
         for (let i = 0; i < 5; i++) {
             const scene = document.getElementById(`scene-${i}`);
             const cube = document.getElementById(`cube-${i}`);
+            if (!scene || !cube) continue;
+            
             const dv = gameState.diceVisuals[i];
 
             if (dv.hidden) {
@@ -489,7 +492,7 @@ function endTurn(saveScore) {
             if (player.barrelAttempts >= 3) {
                 player.totalScore -= 100; 
                 player.barrelAttempts = 0; 
-                showToast("3 попытки на финальной бочке истекли! Штраф минус 100 очков и вы слетаете с бочки.", "danger");
+                showToast("3 попытки на финальной бочке изменились! Штраф минус 100 очков и вы слетаете с бочки.", "danger");
             } else {
                 showToast(`Ход сгорел! Использована попытка на финальной бочке. Осталось попыток: ${3 - player.barrelAttempts}`, "warning");
             }
