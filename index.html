@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>1000 на костях ONLINE</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Контейнер для уведомлений -->
+    <div id="toast-container"></div>
+
+    <!-- Игровое поле -->
+    <div class="board" id="game-board"></div>
+
+    <!-- Кнопки управления -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%;">
+        <button class="btn" id="roll-btn" onclick="rollAll()">БРОСИТЬ</button>
+    </div>
+
+    <!-- ПОДКЛЮЧАЕМ FIREBASE SDK (ВЕРСИЯ 9+) -->
+    <script src="https://gstatic.com"></script>
+    <script src="https://gstatic.com"></script>
+
+    <!-- Ваша игровая логика -->
+    <script src="script.js"></script>
+</body>
+
+</html>

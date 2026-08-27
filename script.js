@@ -1,0 +1,625 @@
+// ==========================================
+// 1. ИНИЦИАЛИЗАЦИЯ FIREBASE И СОСТОЯНИЯ
+// ==========================================
+
+// Ваши личные данные Firebase интегрированы в проект:
+const firebaseConfig = {
+    apiKey: "AIzaSyApx6yyxu4avuWzOInTasy-hFMge7IUrV8",
+    authDomain: "dice-1000-8da36.firebaseapp.com",
+    projectId: "dice-1000-8da36",
+    storageBucket: "dice-1000-8da36.firebasestorage.app",
+    messagingSenderId: "782973038425",
+    appId: "1:782973038425:web:f2e26c6f620b49952a2648",
+    measurementId: "G-NSPFDRDEDY"
+};
+
+// Инициализируем Firebase
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+// Автоматически генерируем комнату или берем существующую из ссылки URL
+const urlParams = new URLSearchParams(window.location.search);
+let roomID = urlParams.get('room');
+let myPlayerIndex = urlParams.get('player'); // 0 — Создатель, 1 — Друг
+
+if (!roomID) {
+    roomID = Math.floor(1000 + Math.random() * 9000);
+    myPlayerIndex = 0;
+    window.history.pushState({}, '', `?room=${roomID}&player=0`);
+} else if (myPlayerIndex === null) {
+    myPlayerIndex = 1;
+    window.history.pushState({}, '', `?room=${roomID}&player=1`);
+}
+
+myPlayerIndex = parseInt(myPlayerIndex);
+const gameRef = database.ref(`rooms/${roomID}`);
+
+const faceTransforms = {
+    1: 'rotateX(0deg) rotateY(0deg)',
+    6: 'rotateX(180deg) rotateY(0deg)',
+    3: 'rotateY(-90deg)',
+    4: 'rotateY(90deg)',
+    2: 'rotateX(-90deg)',
+    5: 'rotateX(90deg)'
+};
+
+// Локальная копия состояния игры (синхронизируется с облаком)
+let gameState = {
+    currentPlayer: 0,
+    players: [
+        { name: "Игрок 1", totalScore: 0, bolts: 0, barrelAttempts: 0, hasEnteredGame: false },
+        { name: "Игрок 2", totalScore: 0, bolts: 0, barrelAttempts: 0, hasEnteredGame: false }
+    ],
+    turnScore: 0,
+    isFirstRollInTurn: true,
+    mustConfirm: false,
+    lastRollDiceObjects: [],
+    lastCalculatedScore: 0,
+    diceVisuals: [
+        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 }
+    ],
+    selectedDiceIds: [false, false, false, false, false]
+};
+
+const cubeTemplate = (id) => `
+    <div class="scene hidden" id="scene-${id}" onclick="toggleSelect(${id})">
+        <div class="cube" id="cube-${id}">
+            <div class="face front"><div class="dot"></div></div>
+            <div class="face back six">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            </div>
+            <div class="face right three">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            </div>
+            <div class="face left four">
+                <div class="dot"></div><div class="dot"></div>
+                <div class="dot"></div><div class="dot"></div>
+            </div>
+            <div class="face top two">
+                <div class="dot"></div><div class="dot"></div>
+            </div>
+            <div class="face bottom five">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                <div class="dot"></div><div class="dot"></div>
+            </div>
+        </div>
+    </div>
+`;
+
+const board = document.getElementById('game-board');
+for (let i = 0; i < 5; i++) {
+    board.innerHTML += cubeTemplate(i);
+}
+
+if (!document.getElementById('game-ui')) {
+    const uiDiv = document.createElement('div');
+    uiDiv.id = 'game-ui';
+    uiDiv.style.margin = '0 0 20px 0';
+    uiDiv.style.width = '100%';
+    uiDiv.style.display = 'flex';
+    uiDiv.style.flexDirection = 'column';
+    uiDiv.style.alignItems = 'center';
+    uiDiv.innerHTML = `
+        <div id="room-link-info" style="font-size:14px; background:#00000040; padding:10px; border-radius:8px; margin-bottom:15px; text-align:center; width:90%; max-width:400px; box-sizing:border-box;">
+            Комната: <b>${roomID}</b><br>
+            <span style="font-size:12px; color:#aaa;">Отправьте полную ссылку из браузера другу.</span>
+        </div>
+        <table class="score-table">
+            <thead><tr><th>Игрок</th><th>Счет</th><th>Болты</th><th>Статус</th></tr></thead>
+            <tbody id="score-table-body"></tbody>
+        </table>
+        <div id="player-turn" style="font-weight:bold; color:#f1c40f; margin: 15px 0 5px 0; font-size:20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Подключение...</div>
+        <div id="turn-status" style="color:#2ecc71; font-size: 18px; font-weight: bold; margin-bottom: 20px;">Очки за ход: 0</div>
+    `;
+    document.body.prepend(uiDiv);
+}
+
+if (!document.getElementById('bank-btn')) {
+    const bankBtn = document.createElement('button');
+    bankBtn.id = 'bank-btn';
+    bankBtn.className = 'btn';
+    bankBtn.style.backgroundColor = '#2ecc71';
+    bankBtn.style.marginTop = '10px';
+    bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
+    bankBtn.onclick = bankScore;
+    document.getElementById('roll-btn').parentNode.appendChild(bankBtn);
+}
+// ==========================================
+// 2. МАТЕМАТИКА И СЕТЕВАЯ СИНХРОНИЗАЦИЯ
+// ==========================================
+
+function calculateDiceScore(diceObjects) {
+    if (diceObjects.length === 0) return { score: 0, scoringDiceCount: 0, scoringIndices: [] };
+
+    let counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+    diceObjects.forEach(d => counts[d.value]++);
+
+    let scoringIndices = [];
+
+    if (diceObjects.length === 5) {
+        let isSmallStraight = Object.values(counts).slice(0, 5).every(v => v === 1);
+        let isBigStraight = Object.values(counts).slice(1, 6).every(v => v === 1);
+
+        if (isBigStraight) {
+            return { score: 250, scoringDiceCount: 5, scoringIndices: diceObjects.map(d => d.index) };
+        }
+        if (isSmallStraight) {
+            return { score: 125, scoringDiceCount: 5, scoringIndices: diceObjects.map(d => d.index) };
+        }
+    }
+
+    let score = 0;
+    let scoringDiceCount = 0;
+    let handledNums = {};
+
+    for (let num = 1; num <= 6; num++) {
+        let count = counts[num];
+
+        if (count >= 3) {
+            handledNums[num] = true;
+            scoringDiceCount += count;
+
+            diceObjects.forEach(d => {
+                if (d.value === num) scoringIndices.push(d.index);
+            });
+
+            if (count === 5) {
+                let nominal = (num === 1) ? 10 : num;
+                score += nominal * 100;
+            }
+            else if (count === 4) {
+                let tripleValue = (num === 1) ? 100 : num * 10;
+                score += tripleValue * 2;
+            }
+            else if (count === 3) {
+                score += (num === 1) ? 100 : num * 10;
+            }
+        }
+    }
+
+    diceObjects.forEach(d => {
+        if (handledNums[d.value]) return;
+
+        if (d.value === 1) {
+            score += 10;
+            scoringDiceCount++;
+            scoringIndices.push(d.index);
+        } else if (d.value === 5) {
+            score += 5;
+            scoringDiceCount++;
+            scoringIndices.push(d.index);
+        }
+    });
+
+    return { score: score, scoringDiceCount: scoringDiceCount, scoringIndices: scoringIndices };
+}
+
+// Слушаем изменения в базе Firebase в реальном времени
+gameRef.on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (!data) {
+        gameRef.set(gameState);
+        return;
+    }
+
+    gameState = data;
+
+    for (let i = 0; i < 5; i++) {
+        const scene = document.getElementById(`scene-${i}`);
+        const cube = document.getElementById(`cube-${i}`);
+        const dv = gameState.diceVisuals[i];
+
+        if (dv.hidden) {
+            scene.classList.add('hidden');
+        } else {
+            scene.classList.remove('hidden');
+        }
+
+        if (gameState.selectedDiceIds[i]) {
+            scene.classList.add('selected');
+        } else {
+            scene.classList.remove('selected');
+        }
+
+        if (dv.locked) {
+            scene.classList.add('locked');
+        } else {
+            scene.classList.remove('locked');
+        }
+
+        cube.style.transform = `rotateX(${dv.rx}deg) rotateY(${dv.ry}deg) ${faceTransforms[dv.value]}`;
+    }
+
+    updateUI();
+});
+// ==========================================
+// 3. СЕТЕВОЙ БРОСОК И РУЧНОЙ ВЫБОР КОСТЕЙ
+// ==========================================
+
+function toggleSelect(id) {
+    if (gameState.currentPlayer !== myPlayerIndex) return;
+    if (gameState.mustConfirm) return;
+
+    let isDiceFromCurrentRoll = gameState.lastRollDiceObjects.some(d => d.index === id);
+    if (!isDiceFromCurrentRoll && !gameState.isFirstRollInTurn) {
+        showToast("Этот кубик отложен на предыдущем броске, его нельзя вернуть в игру!", "warning");
+        return;
+    }
+
+    gameState.selectedDiceIds[id] = !gameState.selectedDiceIds[id];
+    recalculateScoreFromSelected();
+}
+
+function recalculateScoreFromSelected() {
+    let currentlySelectedObjects = [];
+
+    gameState.lastRollDiceObjects.forEach(d => {
+        if (gameState.selectedDiceIds[d.index]) {
+            currentlySelectedObjects.push(d);
+        }
+    });
+
+    const calculation = calculateDiceScore(currentlySelectedObjects);
+    let previousTurnsScore = gameState.turnScore - (gameState.lastCalculatedScore || 0);
+
+    gameState.lastCalculatedScore = calculation.score;
+    gameState.turnScore = previousTurnsScore + calculation.score;
+
+    gameRef.update({
+        selectedDiceIds: gameState.selectedDiceIds,
+        turnScore: gameState.turnScore,
+        lastCalculatedScore: gameState.lastCalculatedScore
+    });
+}
+
+function rollAll() {
+    if (gameState.currentPlayer !== myPlayerIndex) {
+        showToast("Сейчас ход вашего соперника! Ожидайте.", "warning");
+        return;
+    }
+
+    let selectedCountFromLastRoll = 0;
+    gameState.lastRollDiceObjects.forEach(d => {
+        if (gameState.selectedDiceIds[d.index]) {
+            selectedCountFromLastRoll++;
+        }
+    });
+
+    if (!gameState.isFirstRollInTurn && !gameState.mustConfirm && selectedCountFromLastRoll === 0) {
+        showToast("Вы должны оставить отложенным хотя бы один кубик из ТЕКУЩЕГО броска!", "warning");
+        return;
+    }
+
+    if (gameState.isFirstRollInTurn) {
+        gameState.turnScore = 0;
+        gameState.lastCalculatedScore = 0;
+        gameState.lastRollDiceObjects = [];
+        for (let i = 0; i < 5; i++) {
+            gameState.selectedDiceIds[i] = false;
+            gameState.diceVisuals[i] = { hidden: false, locked: false, rx: 0, ry: 0, value: 1 };
+        }
+    } else {
+        for (let i = 0; i < 5; i++) {
+            if (gameState.selectedDiceIds[i]) {
+                gameState.diceVisuals[i].locked = true;
+            }
+        }
+    }
+
+    let unselectedScenesIndices = [];
+    for (let i = 0; i < 5; i++) {
+        if (!gameState.selectedDiceIds[i]) {
+            unselectedScenesIndices.push(i);
+        }
+    }
+
+    if (gameState.mustConfirm) {
+        unselectedScenesIndices =;
+        for (let i = 0; i < 5; i++) {
+            gameState.selectedDiceIds[i] = false;
+            gameState.diceVisuals[i].locked = false;
+        }
+        gameState.mustConfirm = false;
+    }
+
+    let diceObjects = [];
+    unselectedScenesIndices.forEach(idx => {
+        const result = Math.floor(Math.random() * 6) + 1;
+        diceObjects.push({ index: idx, value: result });
+
+        gameState.diceVisuals[idx].rx = (Math.floor(Math.random() * 4) + 2) * 360;
+        gameState.diceVisuals[idx].ry = (Math.floor(Math.random() * 4) + 2) * 360;
+        gameState.diceVisuals[idx].value = result;
+        gameState.diceVisuals[idx].hidden = false;
+    });
+
+    gameState.lastRollDiceObjects = diceObjects;
+    gameState.lastCalculatedScore = 0;
+
+    gameRef.update({
+        diceVisuals: gameState.diceVisuals,
+        selectedDiceIds: gameState.selectedDiceIds,
+        mustConfirm: gameState.mustConfirm,
+        lastRollDiceObjects: gameState.lastRollDiceObjects,
+        lastCalculatedScore: gameState.lastCalculatedScore
+    });
+
+    setTimeout(() => {
+        const calculation = calculateDiceScore(diceObjects);
+        const activePlayer = gameState.players[myPlayerIndex];
+
+        if (calculation.score === 0) {
+            let message = `Выпало 0 очков! Ход переходит к сопернику.`;
+
+            if (gameState.isFirstRollInTurn && activePlayer.totalScore >= 50 && !isPlayerOnBarrel(activePlayer.totalScore)) {
+                activePlayer.bolts++;
+                message = `Ноль очков! Вы получаете БОЛТ.`;
+                if (activePlayer.bolts >= 3) {
+                    activePlayer.bolts = 0;
+                    activePlayer.totalScore -= 100;
+                    message += ` Три болта превращаются в минус 100 очков!`;
+                }
+            }
+
+            showToast(message, "danger");
+            endTurn(false);
+            return;
+        }
+
+        calculation.scoringIndices.forEach(idx => {
+            gameState.selectedDiceIds[idx] = true;
+        });
+
+        gameState.lastCalculatedScore = calculation.score;
+        gameState.turnScore += calculation.score;
+        gameState.isFirstRollInTurn = false;
+
+        if (calculation.scoringDiceCount === unselectedScenesIndices.length) {
+            gameState.mustConfirm = true;
+            showToast(`Все кубики сыграли! Вы набрали ${gameState.turnScore}. Вы ОБЯЗАНЫ подтвердить сумму броском всех 5 кубиков.`, "warning");
+        }
+
+        gameRef.update({
+            selectedDiceIds: gameState.selectedDiceIds,
+            turnScore: gameState.turnScore,
+            lastCalculatedScore: gameState.lastCalculatedScore,
+            isFirstRollInTurn: gameState.isFirstRollInTurn,
+            mustConfirm: gameState.mustConfirm,
+            players: gameState.players
+        });
+    }, 1200);
+}
+
+function bankScore() {
+    if (gameState.currentPlayer !== myPlayerIndex) return;
+
+    if (gameState.mustConfirm) {
+        showToast("Вы не можете записать очки сейчас! Требуется подтверждающий бросок.", "warning");
+        return;
+    }
+
+    let selectedCountFromLastRoll = 0;
+    gameState.lastRollDiceObjects.forEach(d => {
+        if (gameState.selectedDiceIds[d.index]) {
+            selectedCountFromLastRoll++;
+        }
+    });
+
+    if (!gameState.isFirstRollInTurn && selectedCountFromLastRoll === 0) {
+        showToast("Вы должны оставить отложенными результативные кубики текущего броска перед записью!", "warning");
+        return;
+    }
+    endTurn(true);
+}
+// ==========================================
+// 4. ПРАВИЛА (БОЧКИ, ОБГОНЫ, САМОСВАЛ) И UI
+// ==========================================
+
+function endTurn(saveScore) {
+    const player = gameState.players[gameState.currentPlayer];
+
+    if (saveScore) {
+        if (!player.hasEnteredGame && gameState.turnScore < 50) {
+            showToast(`Чтобы открыть счет в игре, нужно набрать минимум 50 очков за один ход! У вас сейчас: ${gameState.turnScore}`, "warning");
+            return;
+        }
+
+        if (!player.hasEnteredGame && gameState.turnScore >= 50) {
+            player.hasEnteredGame = true;
+        }
+
+        let proposedScore = player.totalScore + gameState.turnScore;
+
+        if (player.totalScore >= 200 && player.totalScore < 300 && proposedScore < 300) {
+            showToast(`Вы застряли на бочке (${player.totalScore})! Нельзя записать мелкую сумму. Вам нужно вырваться за 300! Сейчас было бы: ${proposedScore}`, "warning");
+            return;
+        }
+        if (player.totalScore >= 600 && player.totalScore < 700 && proposedScore < 700) {
+            showToast(`Вы застряли на бочке (${player.totalScore})! Нельзя записать мелкую сумму. Вам нужно вырваться за 700! Сейчас было бы: ${proposedScore}`, "warning");
+            return;
+        }
+
+        if (player.totalScore >= 880 && player.totalScore < 1000 && proposedScore < 1000) {
+            showToast(`Вы в капкане финальной бочке (${player.totalScore})! Запись мелких очков заблокирована. Вам нужно выбить ровно 1000 или больше! Сейчас было бы: ${proposedScore}`, "warning");
+            return;
+        }
+
+        if (player.totalScore < 200 && proposedScore >= 200 && proposedScore < 300) {
+            showToast(`Вы попали на БОЧКУ (Счет: ${proposedScore})! В следующий ход придется добирать до 300.`, "warning");
+        }
+        else if (player.totalScore < 600 && proposedScore >= 600 && proposedScore < 700) {
+            showToast(`Вы попали на БОЧКУ (Счет: ${proposedScore})! В следующий ход придется добирать до 700.`, "warning");
+        }
+        else if (player.totalScore < 880 && proposedScore >= 880 && proposedScore < 1000) {
+            player.barrelAttempts = 0;
+            showToast(`ВХОД НА ФИНАЛЬНУЮ БОЧКУ! (Счет: ${proposedScore}). У вас есть ровно 3 хода, чтобы закончить игру!`, "warning");
+        }
+
+        if (proposedScore >= 1000) {
+            player.barrelAttempts = 0;
+        }
+
+        player.totalScore = proposedScore;
+
+        if (player.totalScore === 555) {
+            player.totalScore = 0;
+            showToast("САМОСВАЛ! Ваш счет равен 555 и полностью обнуляется.", "danger");
+        }
+
+        checkOvertake();
+
+        if (player.totalScore >= 1000) {
+            showToast(`Поздравляем! Игрок ${player.name} победил, набрав ${player.totalScore} очков!`, "success");
+            resetGame();
+            return;
+        }
+    } else {
+        if (player.totalScore >= 880 && player.totalScore < 1000) {
+            player.barrelAttempts++;
+            if (player.barrelAttempts >= 3) {
+                player.totalScore -= 100;
+                player.barrelAttempts = 0;
+                showToast("3 попытки на финальной бочке истекли! Штраф минус 100 очков и вы слетаете с бочки.", "danger");
+            } else {
+                showToast(`Ход сгорел! Использована попытка на финальной бочке. Осталось попыток: ${3 - player.barrelAttempts}`, "warning");
+            }
+        }
+    }
+
+    gameState.currentPlayer = gameState.currentPlayer === 0 ? 1 : 0;
+    gameState.turnScore = 0;
+    gameState.isFirstRollInTurn = true;
+    gameState.mustConfirm = false;
+    gameState.lastRollDiceObjects = [];
+    gameState.lastCalculatedScore = 0;
+
+    for (let i = 0; i < 5; i++) {
+        gameState.selectedDiceIds[i] = false;
+        gameState.diceVisuals[i] = { hidden: true, locked: false, rx: 0, ry: 0, value: 1 };
+    }
+
+    gameRef.set(gameState);
+}
+
+function isPlayerOnBarrel(score) {
+    if ((score >= 200 && score < 300) || (score >= 600 && score < 700) || (score >= 880 && score < 1000)) return true;
+    return false;
+}
+
+function checkOvertake() {
+    const p0 = gameState.players;
+    const p1 = gameState.players;
+
+    if (gameState.currentPlayer === 0) {
+        let oldP0 = p0.totalScore - gameState.turnScore;
+        if (oldP0 < p1.totalScore && p0.totalScore > p1.totalScore) {
+            p1.totalScore -= 50;
+            showToast("Обгон! Вы обошли соперника. У него списывается 50 очков.", "success");
+        }
+    } else {
+        let oldP1 = p1.totalScore - gameState.turnScore;
+        if (oldP1 < p0.totalScore && p1.totalScore > p0.totalScore) {
+            p0.totalScore -= 50;
+            showToast("Обгон! Соперник обошел вас. У вас списывается 50 очков.", "danger");
+        }
+    }
+}
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerText = message;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-10px)';
+        setTimeout(() => toast.remove(), 500);
+    }, 3000);
+}
+
+function updateUI() {
+    const p0 = gameState.players;
+    const p1 = gameState.players;
+    const activeIndex = gameState.currentPlayer;
+
+    const p0Name = (myPlayerIndex === 0) ? "Вы" : "Создатель";
+    const p1Name = (myPlayerIndex === 1) ? "Вы (Друг)" : "Друг";
+
+    document.getElementById('player-turn').innerText = `Ход: ${activeIndex === myPlayerIndex ? 'ВАШ ХОД!' : 'Ожидайте соперника...'}`;
+
+    const rollBtn = document.getElementById('roll-btn');
+    const bankBtn = document.getElementById('bank-btn');
+    if (activeIndex === myPlayerIndex) {
+        rollBtn.disabled = false;
+        rollBtn.style.opacity = "1";
+        bankBtn.disabled = false;
+        bankBtn.style.opacity = "1";
+    } else {
+        rollBtn.disabled = true;
+        rollBtn.style.opacity = "0.4";
+        bankBtn.disabled = true;
+        bankBtn.style.opacity = "0.4";
+    }
+
+    const getBoltStars = (bolts) => {
+        if (bolts === 0) return "<span style='color:rgba(255,255,255,0.2)'>✕ ✕ ✕</span>";
+        if (bolts === 1) return "<span class='bolt-indicator'>⚡</span> <span style='color:rgba(255,255,255,0.2)'>✕ ✕</span>";
+        if (bolts === 2) return "<span class='bolt-indicator'>⚡ ⚡</span> <span style='color:rgba(255,255,255,0.2)'>✕</span>";
+        return "<span class='bolt-indicator'>⚡ ⚡ ⚡</span>";
+    };
+
+    const getStatusBadge = (playerObj) => {
+        let score = playerObj.totalScore;
+        if ((score >= 200 && score < 300) || (score >= 600 && score < 700)) {
+            return "<span class='status-badge barrel'>На бочке</span>";
+        }
+        if (score >= 880 && score < 1000) {
+            return `<span class='status-badge barrel'>ФИНАЛ (${3 - playerObj.barrelAttempts} ходов)</span>`;
+        }
+        return "<span class='status-badge'>В игре</span>";
+    };
+
+    const tableBody = document.getElementById('score-table-body');
+    tableBody.innerHTML = `
+        <tr class="${activeIndex === 0 ? 'active-row' : ''}">
+            <td>${p0Name}</td>
+            <td><b>${p0.totalScore}</b></td>
+            <td>${getBoltStars(p0.bolts)}</td>
+            <td>${getStatusBadge(p0)}</td>
+        </tr>
+        <tr class="${activeIndex === 1 ? 'active-row' : ''}">
+            <td>${p1Name}</td>
+            <td><b>${p1.totalScore}</b></td>
+            <td>${getBoltStars(p1.bolts)}</td>
+            <td>${getStatusBadge(p1)}</td>
+        </tr>
+    `;
+
+    document.getElementById('turn-status').innerText = `Очки за ход: ${gameState.turnScore}`;
+
+    if (gameState.mustConfirm) {
+        bankBtn.style.backgroundColor = '#7f8c8d';
+        bankBtn.innerText = 'ПОДТВЕРДИТЕ БРОСКОМ';
+    } else {
+        bankBtn.style.backgroundColor = '#2ecc71';
+        bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
+    }
+}
+
+function resetGame() {
+    gameState.players[0].totalScore = 0; gameState.players[0].bolts = 0; gameState.players[0].barrelAttempts = 0; gameState.players[0].hasEnteredGame = false;
+    gameState.players[1].totalScore = 0; gameState.players[1].bolts = 0; gameState.players[1].barrelAttempts = 0; gameState.players[1].hasEnteredGame = false;
+    gameState.currentPlayer = 0; gameState.turnScore = 0;
+    gameState.isFirstRollInTurn = true; gameState.mustConfirm = false;
+    gameState.lastRollDiceObjects = []; gameState.lastCalculatedScore = 0;
+    gameRef.set(gameState);
+}
