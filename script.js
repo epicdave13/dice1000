@@ -2,10 +2,9 @@
 // 1. ИНИЦИАЛИЗАЦИЯ FIREBASE И СОСТОЯНИЯ
 // ==========================================
 
-// Ваши личные данные Firebase интегрированы в проект:
 const firebaseConfig = {
     apiKey: "AIzaSyApx6yyxu4avuWzOInTasy-hFMge7IUrV8",
-    authDomain: "dice-1000-8da36.firebaseapp.com",
+    authDomain: "://firebaseapp.com",
     projectId: "dice-1000-8da36",
     storageBucket: "dice-1000-8da36.firebasestorage.app",
     messagingSenderId: "782973038425",
@@ -13,14 +12,12 @@ const firebaseConfig = {
     measurementId: "G-NSPFDRDEDY"
 };
 
-// Инициализируем Firebase
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
-// Автоматически генерируем комнату или берем существующую из ссылки URL
 const urlParams = new URLSearchParams(window.location.search);
 let roomID = urlParams.get('room');
-let myPlayerIndex = urlParams.get('player'); // 0 — Создатель, 1 — Друг
+let myPlayerIndex = urlParams.get('player');
 
 if (!roomID) {
     roomID = Math.floor(1000 + Math.random() * 9000);
@@ -43,7 +40,6 @@ const faceTransforms = {
     5: 'rotateX(90deg)'
 };
 
-// Локальная копия состояния игры (синхронизируется с облаком)
 let gameState = {
     currentPlayer: 0,
     players: [
@@ -199,7 +195,6 @@ function calculateDiceScore(diceObjects) {
     return { score: score, scoringDiceCount: scoringDiceCount, scoringIndices: scoringIndices };
 }
 
-// Слушаем изменения в базе Firebase в реальном времени
 gameRef.on('value', (snapshot) => {
     const data = snapshot.val();
     if (!data) {
@@ -295,6 +290,8 @@ function rollAll() {
         return;
     }
 
+    let activeIndices = [];
+
     if (gameState.isFirstRollInTurn) {
         gameState.turnScore = 0;
         gameState.lastCalculatedScore = 0;
@@ -302,33 +299,27 @@ function rollAll() {
         for (let i = 0; i < 5; i++) {
             gameState.selectedDiceIds[i] = false;
             gameState.diceVisuals[i] = { hidden: false, locked: false, rx: 0, ry: 0, value: 1 };
+            activeIndices.push(i);
         }
+    } else if (gameState.mustConfirm) {
+        for (let i = 0; i < 5; i++) {
+            gameState.selectedDiceIds[i] = false;
+            gameState.diceVisuals[i].locked = false;
+            activeIndices.push(i);
+        }
+        gameState.mustConfirm = false;
     } else {
         for (let i = 0; i < 5; i++) {
             if (gameState.selectedDiceIds[i]) {
                 gameState.diceVisuals[i].locked = true;
+            } else {
+                activeIndices.push(i);
             }
         }
     }
 
-    let unselectedScenesIndices = [];
-    for (let i = 0; i < 5; i++) {
-        if (!gameState.selectedDiceIds[i]) {
-            unselectedScenesIndices.push(i);
-        }
-    }
-
-    if (gameState.mustConfirm) {
-        unselectedScenesIndices =;
-        for (let i = 0; i < 5; i++) {
-            gameState.selectedDiceIds[i] = false;
-            gameState.diceVisuals[i].locked = false;
-        }
-        gameState.mustConfirm = false;
-    }
-
     let diceObjects = [];
-    unselectedScenesIndices.forEach(idx => {
+    activeIndices.forEach(idx => {
         const result = Math.floor(Math.random() * 6) + 1;
         diceObjects.push({ index: idx, value: result });
 
@@ -379,7 +370,7 @@ function rollAll() {
         gameState.turnScore += calculation.score;
         gameState.isFirstRollInTurn = false;
 
-        if (calculation.scoringDiceCount === unselectedScenesIndices.length) {
+        if (calculation.scoringDiceCount === activeIndices.length) {
             gameState.mustConfirm = true;
             showToast(`Все кубики сыграли! Вы набрали ${gameState.turnScore}. Вы ОБЯЗАНЫ подтвердить сумму броском всех 5 кубиков.`, "warning");
         }
@@ -445,7 +436,7 @@ function endTurn(saveScore) {
         }
 
         if (player.totalScore >= 880 && player.totalScore < 1000 && proposedScore < 1000) {
-            showToast(`Вы в капкане финальной бочке (${player.totalScore})! Запись мелких очков заблокирована. Вам нужно выбить ровно 1000 или больше! Сейчас было бы: ${proposedScore}`, "warning");
+            showToast(`Вы в капкане финальной бочки (${player.totalScore})! Запись мелких очков заблокирована. Вам нужно выбить ровно 1000 или больше! Сейчас было бы: ${proposedScore}`, "warning");
             return;
         }
 
@@ -615,9 +606,10 @@ function updateUI() {
     }
 }
 
+// ТОЧНЫЙ СБРОС СЧЕТА
 function resetGame() {
-    gameState.players[0].totalScore = 0; gameState.players[0].bolts = 0; gameState.players[0].barrelAttempts = 0; gameState.players[0].hasEnteredGame = false;
-    gameState.players[1].totalScore = 0; gameState.players[1].bolts = 0; gameState.players[1].barrelAttempts = 0; gameState.players[1].hasEnteredGame = false;
+    gameState.players.totalScore = 0; gameState.players.bolts = 0; gameState.players.barrelAttempts = 0; gameState.players.hasEnteredGame = false;
+    gameState.players.totalScore = 0; gameState.players.bolts = 0; gameState.players.barrelAttempts = 0; gameState.players.hasEnteredGame = false;
     gameState.currentPlayer = 0; gameState.turnScore = 0;
     gameState.isFirstRollInTurn = true; gameState.mustConfirm = false;
     gameState.lastRollDiceObjects = []; gameState.lastCalculatedScore = 0;
