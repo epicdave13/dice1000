@@ -1,6 +1,45 @@
 // ==========================================
-// 1. НАСТРОЙКИ, СОСТОЯНИЕ И ГЕНЕРАЦИЯ UI
+// 1. ИНИЦИАЛИЗАЦИЯ FIREBASE И СОСТОЯНИЯ
 // ==========================================
+
+const firebaseConfig = {
+    apiKey: "AIzaSyApx6yyxu4avuWzOInTasy-hFMge7IUrV8",
+    authDomain: "dice-1000-8da36.firebaseapp.com",
+    projectId: "dice-1000-8da36",
+    storageBucket: "dice-1000-8da36.firebasestorage.app",
+    messagingSenderId: "782973038425",
+    appId: "1:782973038425:web:f2e26c6f620b49952a2648",
+    measurementId: "G-NSPFDRDEDY"
+};
+
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+const urlParams = new URLSearchParams(window.location.search);
+let roomID = urlParams.get('room');
+let myPlayerIndex = urlParams.get('player');
+
+if (!roomID) {
+    roomID = Math.floor(1000 + Math.random() * 9000);
+    myPlayerIndex = 0;
+    window.history.pushState({}, '', `?room=${roomID}&player=0`);
+} else if (myPlayerIndex === null) {
+    myPlayerIndex = 1;
+    window.history.pushState({}, '', `?room=${roomID}&player=1`);
+}
+
+myPlayerIndex = parseInt(myPlayerIndex);
+const gameRef = database.ref(`rooms/${roomID}`);
+
+// Ввод имени игрока при входе
+let savedName = localStorage.getItem('dice_player_name');
+if (!savedName) {
+    savedName = prompt("Введите ваше имя:", myPlayerIndex === 0 ? "Игрок 1" : "Игрок 2");
+    if (!savedName || !savedName.trim()) {
+        savedName = myPlayerIndex === 0 ? "Игрок 1" : "Игрок 2";
+    }
+    localStorage.setItem('dice_player_name', savedName.trim());
+}
 
 const faceTransforms = {
     1: 'rotateX(0deg) rotateY(0deg)',
@@ -10,11 +49,6 @@ const faceTransforms = {
     2: 'rotateX(-90deg)',
     5: 'rotateX(90deg)'
 };
-
-let database;
-let gameRef;
-let roomID;
-let myPlayerIndex;
 
 let gameState = {
     currentPlayer: 0,
@@ -33,7 +67,7 @@ let gameState = {
         { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
         { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
         { hidden: true, locked: false, rx: 0, ry: 0, value: 1 }
-    ], 
+    ],
     selectedDiceIds: [false, false, false, false, false]
 };
 
@@ -63,86 +97,51 @@ const cubeTemplate = (id) => `
     </div>
 `;
 
-// ЗАПУСК ИГРЫ СТРОГО ПОСЛЕ ЗАГРУЗКИ ВСЕХ СКРИПТОВ ИЗ СЕТИ
-window.onload = function() {
-    const firebaseConfig = {
-    apiKey: "AIzaSyApx6yyxu4avuWzOInTasy-hFMge7IUrV8",
-    authDomain: "dice-1000-8da36.firebaseapp.com",
-    projectId: "dice-1000-8da36",
-    storageBucket: "dice-1000-8da36.firebasestorage.app",
-    messagingSenderId: "782973038425",
-    appId: "1:782973038425:web:f2e26c6f620b49952a2648",
-    measurementId: "G-NSPFDRDEDY"
-};
+const board = document.getElementById('game-board');
+for (let i = 0; i < 5; i++) {
+    board.innerHTML += cubeTemplate(i);
+}
 
-    firebase.initializeApp(firebaseConfig);
-    database = firebase.database();
+if (!document.getElementById('game-ui')) {
+    const uiDiv = document.createElement('div');
+    uiDiv.id = 'game-ui';
+    uiDiv.style.margin = '0 0 20px 0';
+    uiDiv.style.width = '100%';
+    uiDiv.style.display = 'flex';
+    uiDiv.style.flexDirection = 'column';
+    uiDiv.style.alignItems = 'center';
+    uiDiv.innerHTML = `
+        <div id="room-link-info" style="font-size:14px; background:#00000040; padding:10px; border-radius:8px; margin-bottom:15px; text-align:center; width:90%; max-width:400px; box-sizing:border-box;">
+            Комната: <b>${roomID}</b><br>
+            <span style="font-size:12px; color:#aaa;">Отправьте ссылку без параметров другу.</span>
+        </div>
+        <table class="score-table">
+            <thead><tr><th>Игрок</th><th>Счет</th><th>Болты</th><th>Статус</th></tr></thead>
+            <tbody id="score-table-body"></tbody>
+        </table>
+        <div id="player-turn" style="font-weight:bold; color:#f1c40f; margin: 15px 0 5px 0; font-size:20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Подключение...</div>
+        <div id="turn-status" style="color:#2ecc71; font-size: 18px; font-weight: bold; margin-bottom: 20px;">Очки за ход: 0</div>
+    `;
+    document.body.prepend(uiDiv);
+}
 
-    const urlParams = new URLSearchParams(window.location.search);
-    roomID = urlParams.get('room');
-    myPlayerIndex = urlParams.get('player'); 
+if (!document.getElementById('bank-btn')) {
+    const bankBtn = document.createElement('button');
+    bankBtn.id = 'bank-btn';
+    bankBtn.className = 'btn';
+    bankBtn.style.backgroundColor = '#2ecc71';
+    bankBtn.style.marginTop = '10px';
+    bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
+    bankBtn.onclick = bankScore;
+    document.getElementById('roll-btn').parentNode.appendChild(bankBtn);
+}
 
-    if (!roomID) {
-        roomID = Math.floor(1000 + Math.random() * 9000);
-        myPlayerIndex = 0; 
-        window.history.pushState({}, '', `?room=${roomID}&player=0`);
-    } else if (myPlayerIndex === null) {
-        myPlayerIndex = 1; 
-        window.history.pushState({}, '', `?room=${roomID}&player=1`);
-    }
-
-    myPlayerIndex = parseInt(myPlayerIndex);
-    gameRef = database.ref(`rooms/${roomID}`);
-
-    // Генерируем элементы интерфейса на экране
-    const board = document.getElementById('game-board');
-    for (let i = 0; i < 5; i++) {
-        board.innerHTML += cubeTemplate(i);
-    }
-
-    if (!document.getElementById('game-ui')) {
-        const uiDiv = document.createElement('div');
-        uiDiv.id = 'game-ui';
-        uiDiv.style.margin = '0 0 20px 0';
-        uiDiv.style.width = '100%';
-        uiDiv.style.display = 'flex';
-        uiDiv.style.flexDirection = 'column';
-        uiDiv.style.alignItems = 'center';
-        uiDiv.innerHTML = `
-            <table class="score-table">
-                <thead><tr><th>Игрок</th><th>Счет</th><th>Болты</th><th>Статус</th></tr></thead>
-                <tbody id="score-table-body"></tbody>
-            </table>
-            <div id="room-link-info" style="font-size:14px; background:#00000040; padding:10px; border-radius:8px; margin: 15px 0 5px 0; text-align:center; width:90%; max-width:400px; box-sizing:border-box;">
-                Комната: <b id="room-display">Подключение...</b><br>
-                <span style="font-size:12px; color:#aaa;">Отправьте полную ссылку из браузера другу.</span>
-            </div>
-            <div id="player-turn" style="font-weight:bold; color:#f1c40f; margin-bottom: 5px; font-size:20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Подключение...</div>
-            <div id="turn-status" style="color:#2ecc71; font-size: 18px; font-weight: bold; margin-bottom: 20px;">Очки за ход: 0</div>
-        `;
-        document.body.prepend(uiDiv);
-    }
-
-    if (!document.getElementById('bank-btn')) {
-        const bankBtn = document.createElement('button');
-        bankBtn.id = 'bank-btn';
-        bankBtn.className = 'btn';
-        bankBtn.style.backgroundColor = '#2ecc71';
-        bankBtn.style.marginTop = '10px';
-        bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
-        bankBtn.onclick = bankScore;
-        document.getElementById('roll-btn').parentNode.appendChild(bankBtn);
-    }
-
-    // Запускаем сетевую синхронизацию
-    initNetworkSnyc();
-};
 // ==========================================
 // 2. МАТЕМАТИКА И СЕТЕВАЯ СИНХРОНИЗАЦИЯ
 // ==========================================
 
 function calculateDiceScore(diceObjects) {
-    if (diceObjects.length === 0) return { score: 0, scoringDiceCount: 0, scoringIndices: [] };
+    if (!diceObjects || diceObjects.length === 0) return { score: 0, scoringDiceCount: 0, scoringIndices: [] };
 
     let counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
     diceObjects.forEach(d => counts[d.value]++);
@@ -150,8 +149,8 @@ function calculateDiceScore(diceObjects) {
     let scoringIndices = [];
 
     if (diceObjects.length === 5) {
-        let isSmallStraight = Object.values(counts).slice(0,5).every(v => v === 1);
-        let isBigStraight = Object.values(counts).slice(1,6).every(v => v === 1);
+        let isSmallStraight = Object.values(counts).slice(0, 5).every(v => v === 1);
+        let isBigStraight = Object.values(counts).slice(1, 6).every(v => v === 1);
 
         if (isBigStraight) {
             return { score: 250, scoringDiceCount: 5, scoringIndices: diceObjects.map(d => d.index) };
@@ -171,7 +170,7 @@ function calculateDiceScore(diceObjects) {
         if (count >= 3) {
             handledNums[num] = true;
             scoringDiceCount += count;
-            
+
             diceObjects.forEach(d => {
                 if (d.value === num) scoringIndices.push(d.index);
             });
@@ -179,11 +178,11 @@ function calculateDiceScore(diceObjects) {
             if (count === 5) {
                 let nominal = (num === 1) ? 10 : num;
                 score += nominal * 100;
-            } 
+            }
             else if (count === 4) {
                 let tripleValue = (num === 1) ? 100 : num * 10;
                 score += tripleValue * 2;
-            } 
+            }
             else if (count === 3) {
                 score += (num === 1) ? 100 : num * 10;
             }
@@ -191,7 +190,7 @@ function calculateDiceScore(diceObjects) {
     }
 
     diceObjects.forEach(d => {
-        if (handledNums[d.value]) return; 
+        if (handledNums[d.value]) return;
 
         if (d.value === 1) {
             score += 10;
@@ -207,63 +206,67 @@ function calculateDiceScore(diceObjects) {
     return { score: score, scoringDiceCount: scoringDiceCount, scoringIndices: scoringIndices };
 }
 
-function initNetworkSnyc() {
-    document.getElementById('room-display').innerText = roomID;
-    
-    gameRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (!data) {
-            gameRef.set(gameState);
-            return;
+gameRef.on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (!data) {
+        gameState.players[myPlayerIndex].name = savedName;
+        gameRef.set(gameState);
+        return;
+    }
+
+    gameState = data;
+    if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
+
+    // Обновляем свое имя в базе, если оно еще дефолтное
+    if (gameState.players[myPlayerIndex] && gameState.players[myPlayerIndex].name !== savedName) {
+        gameState.players[myPlayerIndex].name = savedName;
+        gameRef.child(`players/${myPlayerIndex}/name`).set(savedName);
+    }
+
+    for (let i = 0; i < 5; i++) {
+        const scene = document.getElementById(`scene-${i}`);
+        const cube = document.getElementById(`cube-${i}`);
+        const dv = gameState.diceVisuals[i];
+
+        if (dv.hidden) {
+            scene.classList.add('hidden');
+        } else {
+            scene.classList.remove('hidden');
         }
 
-        gameState = data;
-        
-        for (let i = 0; i < 5; i++) {
-            const scene = document.getElementById(`scene-${i}`);
-            const cube = document.getElementById(`cube-${i}`);
-            if (!scene || !cube) continue;
-            
-            const dv = gameState.diceVisuals[i];
-
-            if (dv.hidden) {
-                scene.classList.add('hidden');
-            } else {
-                scene.classList.remove('hidden');
-            }
-
-            if (gameState.selectedDiceIds[i]) {
-                scene.classList.add('selected');
-            } else {
-                scene.classList.remove('selected');
-            }
-
-            if (dv.locked) {
-                scene.classList.add('locked');
-            } else {
-                scene.classList.remove('locked');
-            }
-
-            cube.style.transform = `rotateX(${dv.rx}deg) rotateY(${dv.ry}deg) ${faceTransforms[dv.value]}`;
+        if (gameState.selectedDiceIds[i]) {
+            scene.classList.add('selected');
+        } else {
+            scene.classList.remove('selected');
         }
 
-        updateUI();
-    });
-}
+        if (dv.locked) {
+            scene.classList.add('locked');
+        } else {
+            scene.classList.remove('locked');
+        }
+
+        cube.style.transform = `rotateX(${dv.rx}deg) rotateY(${dv.ry}deg) ${faceTransforms[dv.value]}`;
+    }
+
+    updateUI();
+});
+
 // ==========================================
 // 3. СЕТЕВОЙ БРОСОК И РУЧНОЙ ВЫБОР КОСТЕЙ
 // ==========================================
 
 function toggleSelect(id) {
+    if (gameState.currentPlayer !== myPlayerIndex) return;
+    if (gameState.mustConfirm) return;
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
-    if (gameState.currentPlayer !== myPlayerIndex || gameState.mustConfirm) return; 
 
     let isDiceFromCurrentRoll = gameState.lastRollDiceObjects.some(d => d.index === id);
     if (!isDiceFromCurrentRoll && !gameState.isFirstRollInTurn) {
         showToast("Этот кубик отложен на предыдущем броске, его нельзя вернуть в игру!", "warning");
-        return; 
+        return;
     }
-    
+
     gameState.selectedDiceIds[id] = !gameState.selectedDiceIds[id];
     recalculateScoreFromSelected();
 }
@@ -271,19 +274,19 @@ function toggleSelect(id) {
 function recalculateScoreFromSelected() {
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
     let currentlySelectedObjects = [];
-    
+
     gameState.lastRollDiceObjects.forEach(d => {
         if (gameState.selectedDiceIds[d.index]) {
             currentlySelectedObjects.push(d);
         }
     });
-    
+
     const calculation = calculateDiceScore(currentlySelectedObjects);
     let previousTurnsScore = gameState.turnScore - (gameState.lastCalculatedScore || 0);
-    
+
     gameState.lastCalculatedScore = calculation.score;
     gameState.turnScore = previousTurnsScore + calculation.score;
-    
+
     gameRef.update({
         selectedDiceIds: gameState.selectedDiceIds,
         turnScore: gameState.turnScore,
@@ -297,14 +300,11 @@ function rollAll() {
         return;
     }
 
-    // Защита от undefined, если массив еще не был создан в базе
-    if (!gameState.lastRollDiceObjects) {
-        gameState.lastRollDiceObjects = [];
-    }
+    if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
 
     let selectedCountFromLastRoll = 0;
     gameState.lastRollDiceObjects.forEach(d => {
-        if (gameState.selectedDiceIds && gameState.selectedDiceIds[d.index]) {
+        if (gameState.selectedDiceIds[d.index]) {
             selectedCountFromLastRoll++;
         }
     });
@@ -411,14 +411,14 @@ function rollAll() {
 }
 
 function bankScore() {
-    if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
     if (gameState.currentPlayer !== myPlayerIndex) return;
+    if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
 
     if (gameState.mustConfirm) {
         showToast("Вы не можете записать очки сейчас! Требуется подтверждающий бросок.", "warning");
         return;
     }
-    
+
     let selectedCountFromLastRoll = 0;
     gameState.lastRollDiceObjects.forEach(d => {
         if (gameState.selectedDiceIds[d.index]) {
@@ -432,9 +432,27 @@ function bankScore() {
     }
     endTurn(true);
 }
+
 // ==========================================
 // 4. ПРАВИЛА (БОЧКИ, ОБГОНЫ, САМОСВАЛ) И UI
 // ==========================================
+
+function checkOvertake() {
+    const currentIdx = gameState.currentPlayer;
+    const opponentIdx = currentIdx === 0 ? 1 : 0;
+
+    const currentPlayer = gameState.players[currentIdx];
+    const opponentPlayer = gameState.players[opponentIdx];
+
+    // Очки игрока до списания за этот ход
+    let oldScore = currentPlayer.totalScore - gameState.turnScore;
+
+    // Обгон происходит, если до хода текущий игрок отставал или был равен сопернику, а теперь строго обогнал его
+    if (oldScore <= opponentPlayer.totalScore && currentPlayer.totalScore > opponentPlayer.totalScore && opponentPlayer.totalScore > 0) {
+        opponentPlayer.totalScore = Math.max(0, opponentPlayer.totalScore - 50);
+        showToast(`Обгон! ${currentPlayer.name} обошел соперника ${opponentPlayer.name}. Списано 50 очков!`, "success");
+    }
+}
 
 function endTurn(saveScore) {
     const player = gameState.players[gameState.currentPlayer];
@@ -442,7 +460,7 @@ function endTurn(saveScore) {
     if (saveScore) {
         if (!player.hasEnteredGame && gameState.turnScore < 50) {
             showToast(`Чтобы открыть счет в игре, нужно набрать минимум 50 очков за один ход! У вас сейчас: ${gameState.turnScore}`, "warning");
-            return; 
+            return;
         }
 
         if (!player.hasEnteredGame && gameState.turnScore >= 50) {
@@ -472,7 +490,7 @@ function endTurn(saveScore) {
             showToast(`Вы попали на БОЧКУ (Счет: ${proposedScore})! В следующий ход придется добирать до 700.`, "warning");
         }
         else if (player.totalScore < 880 && proposedScore >= 880 && proposedScore < 1000) {
-            player.barrelAttempts = 0; 
+            player.barrelAttempts = 0;
             showToast(`ВХОД НА ФИНАЛЬНУЮ БОЧКУ! (Счет: ${proposedScore}). У вас есть ровно 3 хода, чтобы закончить игру!`, "warning");
         }
 
@@ -498,9 +516,9 @@ function endTurn(saveScore) {
         if (player.totalScore >= 880 && player.totalScore < 1000) {
             player.barrelAttempts++;
             if (player.barrelAttempts >= 3) {
-                player.totalScore -= 100; 
-                player.barrelAttempts = 0; 
-                showToast("3 попытки на финальной бочке изменились! Штраф минус 100 очков и вы слетаете с бочки.", "danger");
+                player.totalScore -= 100;
+                player.barrelAttempts = 0;
+                showToast("3 попытки на финальной бочке истекли! Штраф минус 100 очков и вы слетаете с бочки.", "danger");
             } else {
                 showToast(`Ход сгорел! Использована попытка на финальной бочке. Осталось попыток: ${3 - player.barrelAttempts}`, "warning");
             }
@@ -527,25 +545,6 @@ function isPlayerOnBarrel(score) {
     return false;
 }
 
-function checkOvertake() {
-    const p0 = gameState.players;
-    const p1 = gameState.players;
-
-    if (gameState.currentPlayer === 0) {
-        let oldP0 = p0.totalScore - gameState.turnScore;
-        if (oldP0 < p1.totalScore && p0.totalScore > p1.totalScore) {
-            p1.totalScore -= 50;
-            showToast("Обгон! Вы обошли соперника. У него списывается 50 очков.", "success");
-        }
-    } else {
-        let oldP1 = p1.totalScore - gameState.turnScore;
-        if (oldP1 < p0.totalScore && p1.totalScore > p0.totalScore) {
-            p0.totalScore -= 50;
-            showToast("Обгон! Соперник обошел вас. У вас списывается 50 очков.", "danger");
-        }
-    }
-}
-
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -563,17 +562,14 @@ function showToast(message, type = 'info') {
 }
 
 function updateUI() {
-    // Если игроки еще не загружены или структура сбилась
-    if (!gameState.players || !Array.isArray(gameState.players)) {
-        return;
-    }
+    if (!gameState.players || !Array.isArray(gameState.players)) return;
 
     const p0 = gameState.players[0] || { name: "Игрок 1", totalScore: 0, bolts: 0, barrelAttempts: 0 };
     const p1 = gameState.players[1] || { name: "Игрок 2", totalScore: 0, bolts: 0, barrelAttempts: 0 };
     const activeIndex = gameState.currentPlayer;
 
-    const p0Name = (myPlayerIndex === 0) ? "Вы" : "Создатель";
-    const p1Name = (myPlayerIndex === 1) ? "Вы (Друг)" : "Друг";
+    const p0Name = (myPlayerIndex === 0) ? `${p0.name} (Вы)` : p0.name;
+    const p1Name = (myPlayerIndex === 1) ? `${p1.name} (Вы)` : p1.name;
 
     const turnElement = document.getElementById('player-turn');
     if (turnElement) {
@@ -648,17 +644,16 @@ function updateUI() {
     }
 }
 
-// ТОЧНЫЙ СБРОС СЧЕТА
 function resetGame() {
     gameState.players = [
-        { name: "Игрок 1", totalScore: 0, bolts: 0, barrelAttempts: 0, hasEnteredGame: false },
-        { name: "Игрок 2", totalScore: 0, bolts: 0, barrelAttempts: 0, hasEnteredGame: false }
+        { name: gameState.players[0]?.name || "Игрок 1", totalScore: 0, bolts: 0, barrelAttempts: 0, hasEnteredGame: false },
+        { name: gameState.players[1]?.name || "Игрок 2", totalScore: 0, bolts: 0, barrelAttempts: 0, hasEnteredGame: false }
     ];
     gameState.currentPlayer = 0;
     gameState.turnScore = 0;
-    gameState.isFirstRollInTurn = true; 
+    gameState.isFirstRollInTurn = true;
     gameState.mustConfirm = false;
-    gameState.lastRollDiceObjects = []; 
+    gameState.lastRollDiceObjects = [];
     gameState.lastCalculatedScore = 0;
     gameRef.set(gameState);
 }
