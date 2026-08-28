@@ -563,30 +563,40 @@ function showToast(message, type = 'info') {
 }
 
 function updateUI() {
-    const p0 = gameState.players;
-    const p1 = gameState.players;
+    // Если игроки еще не загружены или структура сбилась
+    if (!gameState.players || !Array.isArray(gameState.players)) {
+        return;
+    }
+
+    const p0 = gameState.players[0] || { name: "Игрок 1", totalScore: 0, bolts: 0, barrelAttempts: 0 };
+    const p1 = gameState.players[1] || { name: "Игрок 2", totalScore: 0, bolts: 0, barrelAttempts: 0 };
     const activeIndex = gameState.currentPlayer;
 
     const p0Name = (myPlayerIndex === 0) ? "Вы" : "Создатель";
     const p1Name = (myPlayerIndex === 1) ? "Вы (Друг)" : "Друг";
 
-    document.getElementById('player-turn').innerText = `Ход: ${activeIndex === myPlayerIndex ? 'ВАШ ХОД!' : 'Ожидайте соперника...'}`;
-    
-    const rollBtn = document.getElementById('roll-btn');
-    const bankBtn = document.getElementById('bank-btn');
-    if (activeIndex === myPlayerIndex) {
-        rollBtn.disabled = false;
-        rollBtn.style.opacity = "1";
-        bankBtn.disabled = false;
-        bankBtn.style.opacity = "1";
-    } else {
-        rollBtn.disabled = true;
-        rollBtn.style.opacity = "0.4";
-        bankBtn.disabled = true;
-        bankBtn.style.opacity = "0.4";
+    const turnElement = document.getElementById('player-turn');
+    if (turnElement) {
+        turnElement.innerText = `Ход: ${activeIndex === myPlayerIndex ? 'ВАШ ХОД!' : 'Ожидайте соперника...'}`;
     }
 
-    const getBoltStars = (bolts) => {
+    const rollBtn = document.getElementById('roll-btn');
+    const bankBtn = document.getElementById('bank-btn');
+    if (rollBtn && bankBtn) {
+        if (activeIndex === myPlayerIndex) {
+            rollBtn.disabled = false;
+            rollBtn.style.opacity = "1";
+            bankBtn.disabled = false;
+            bankBtn.style.opacity = "1";
+        } else {
+            rollBtn.disabled = true;
+            rollBtn.style.opacity = "0.4";
+            bankBtn.disabled = true;
+            bankBtn.style.opacity = "0.4";
+        }
+    }
+
+    const getBoltStars = (bolts = 0) => {
         if (bolts === 0) return "<span style='color:rgba(255,255,255,0.2)'>✕ ✕ ✕</span>";
         if (bolts === 1) return "<span class='bolt-indicator'>⚡</span> <span style='color:rgba(255,255,255,0.2)'>✕ ✕</span>";
         if (bolts === 2) return "<span class='bolt-indicator'>⚡ ⚡</span> <span style='color:rgba(255,255,255,0.2)'>✕</span>";
@@ -594,12 +604,12 @@ function updateUI() {
     };
 
     const getStatusBadge = (playerObj) => {
-        let score = playerObj.totalScore;
+        let score = playerObj.totalScore || 0;
         if ((score >= 200 && score < 300) || (score >= 600 && score < 700)) {
             return "<span class='status-badge barrel'>На бочке</span>";
         }
         if (score >= 880 && score < 1000) {
-            return `<span class='status-badge barrel'>ФИНАЛ (${3 - playerObj.barrelAttempts} ходов)</span>`;
+            return `<span class='status-badge barrel'>ФИНАЛ (${3 - (playerObj.barrelAttempts || 0)} ходов)</span>`;
         }
         return "<span class='status-badge'>В игре</span>";
     };
@@ -609,27 +619,32 @@ function updateUI() {
         tableBody.innerHTML = `
             <tr class="${activeIndex === 0 ? 'active-row' : ''}">
                 <td>${p0Name}</td>
-                <td><b>${p0.totalScore}</b></td>
+                <td><b>${p0.totalScore || 0}</b></td>
                 <td>${getBoltStars(p0.bolts)}</td>
                 <td>${getStatusBadge(p0)}</td>
             </tr>
             <tr class="${activeIndex === 1 ? 'active-row' : ''}">
                 <td>${p1Name}</td>
-                <td><b>${p1.totalScore}</b></td>
+                <td><b>${p1.totalScore || 0}</b></td>
                 <td>${getBoltStars(p1.bolts)}</td>
                 <td>${getStatusBadge(p1)}</td>
             </tr>
         `;
     }
 
-    document.getElementById('turn-status').innerText = `Очки за ход: ${gameState.turnScore}`;
-    
-    if (gameState.mustConfirm) {
-        bankBtn.style.backgroundColor = '#7f8c8d';
-        bankBtn.innerText = 'ПОДТВЕРДИТЕ БРОСКОМ';
-    } else {
-        bankBtn.style.backgroundColor = '#2ecc71';
-        bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
+    const turnStatus = document.getElementById('turn-status');
+    if (turnStatus) {
+        turnStatus.innerText = `Очки за ход: ${gameState.turnScore || 0}`;
+    }
+
+    if (bankBtn) {
+        if (gameState.mustConfirm) {
+            bankBtn.style.backgroundColor = '#7f8c8d';
+            bankBtn.innerText = 'ПОДТВЕРДИТЕ БРОСКОМ';
+        } else {
+            bankBtn.style.backgroundColor = '#2ecc71';
+            bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
+        }
     }
 }
 
