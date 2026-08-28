@@ -295,9 +295,14 @@ function rollAll() {
         return;
     }
 
+    // Защита от undefined, если массив еще не был создан в базе
+    if (!gameState.lastRollDiceObjects) {
+        gameState.lastRollDiceObjects = [];
+    }
+
     let selectedCountFromLastRoll = 0;
     gameState.lastRollDiceObjects.forEach(d => {
-        if (gameState.selectedDiceIds[d.index]) {
+        if (gameState.selectedDiceIds && gameState.selectedDiceIds[d.index]) {
             selectedCountFromLastRoll++;
         }
     });
@@ -310,7 +315,7 @@ function rollAll() {
     let activeIndices = [];
 
     if (gameState.isFirstRollInTurn) {
-        gameState.turnScore = 0; 
+        gameState.turnScore = 0;
         gameState.lastCalculatedScore = 0;
         gameState.lastRollDiceObjects = [];
         for (let i = 0; i < 5; i++) {
@@ -339,7 +344,7 @@ function rollAll() {
     activeIndices.forEach(idx => {
         const result = Math.floor(Math.random() * 6) + 1;
         diceObjects.push({ index: idx, value: result });
-        
+
         gameState.diceVisuals[idx].rx = (Math.floor(Math.random() * 4) + 2) * 360;
         gameState.diceVisuals[idx].ry = (Math.floor(Math.random() * 4) + 2) * 360;
         gameState.diceVisuals[idx].value = result;
@@ -363,7 +368,7 @@ function rollAll() {
 
         if (calculation.score === 0) {
             let message = `Выпало 0 очков! Ход переходит к сопернику.`;
-            
+
             if (gameState.isFirstRollInTurn && activePlayer.totalScore >= 50 && !isPlayerOnBarrel(activePlayer.totalScore)) {
                 activePlayer.bolts++;
                 message = `Ноль очков! Вы получаете БОЛТ.`;
@@ -373,7 +378,7 @@ function rollAll() {
                     message += ` Три болта превращаются в минус 100 очков!`;
                 }
             }
-            
+
             showToast(message, "danger");
             endTurn(false);
             return;
