@@ -255,6 +255,7 @@ function initNetworkSnyc() {
 // ==========================================
 
 function toggleSelect(id) {
+    if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
     if (gameState.currentPlayer !== myPlayerIndex || gameState.mustConfirm) return; 
 
     let isDiceFromCurrentRoll = gameState.lastRollDiceObjects.some(d => d.index === id);
@@ -268,6 +269,7 @@ function toggleSelect(id) {
 }
 
 function recalculateScoreFromSelected() {
+    if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
     let currentlySelectedObjects = [];
     
     gameState.lastRollDiceObjects.forEach(d => {
@@ -409,6 +411,7 @@ function rollAll() {
 }
 
 function bankScore() {
+    if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
     if (gameState.currentPlayer !== myPlayerIndex) return;
 
     if (gameState.mustConfirm) {
