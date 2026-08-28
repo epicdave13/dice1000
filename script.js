@@ -66,14 +66,14 @@ const cubeTemplate = (id) => `
 // ЗАПУСК ИГРЫ СТРОГО ПОСЛЕ ЗАГРУЗКИ ВСЕХ СКРИПТОВ ИЗ СЕТИ
 window.onload = function() {
     const firebaseConfig = {
-        apiKey: "AIzaSyApx6yyxu4avuWzOInTasy-hFMge7IUrV8",
-        authDomain: "://firebaseapp.com",
-        projectId: "dice-1000-8da36",
-        storageBucket: "dice-1000-8da36.firebasestorage.app",
-        messagingSenderId: "782973038425",
-        appId: "1:782973038425:web:f2e26c6f620b49952a2648",
-        measurementId: "G-NSPFDRDEDY"
-    };
+    apiKey: "AIzaSyApx6yyxu4avuWzOInTasy-hFMge7IUrV8",
+    authDomain: "dice-1000-8da36.firebaseapp.com",
+    projectId: "dice-1000-8da36",
+    storageBucket: "dice-1000-8da36.firebasestorage.app",
+    messagingSenderId: "782973038425",
+    appId: "1:782973038425:web:f2e26c6f620b49952a2648",
+    measurementId: "G-NSPFDRDEDY"
+};
 
     firebase.initializeApp(firebaseConfig);
     database = firebase.database();
@@ -625,11 +625,17 @@ function updateUI() {
     }
 }
 
+// ТОЧНЫЙ СБРОС СЧЕТА
 function resetGame() {
-    gameState.players.totalScore = 0; gameState.players.bolts = 0; gameState.players.barrelAttempts = 0; gameState.players.hasEnteredGame = false;
-    gameState.players.totalScore = 0; gameState.players.bolts = 0; gameState.players.barrelAttempts = 0; gameState.players.hasEnteredGame = false;
-    gameState.currentPlayer = 0; gameState.turnScore = 0;
-    gameState.isFirstRollInTurn = true; gameState.mustConfirm = false;
-    gameState.lastRollDiceObjects = []; gameState.lastCalculatedScore = 0;
+    gameState.players = [
+        { name: "Игрок 1", totalScore: 0, bolts: 0, barrelAttempts: 0, hasEnteredGame: false },
+        { name: "Игрок 2", totalScore: 0, bolts: 0, barrelAttempts: 0, hasEnteredGame: false }
+    ];
+    gameState.currentPlayer = 0;
+    gameState.turnScore = 0;
+    gameState.isFirstRollInTurn = true; 
+    gameState.mustConfirm = false;
+    gameState.lastRollDiceObjects = []; 
+    gameState.lastCalculatedScore = 0;
     gameRef.set(gameState);
 }
