@@ -232,6 +232,29 @@ function calculateDiceScore(diceObjects) {
     return { score: score, scoringDiceCount: scoringDiceCount, scoringIndices: scoringIndices };
 }
 
+// Отслеживание присутствия конкретного игрока
+function setupPresence(playerIndex) {
+    const myPresenceRef = database.ref(`rooms/${roomID}/activePlayers/${playerIndex}`);
+    const connectedRef = database.ref('.info/connected');
+
+    connectedRef.on('value', (snap) => {
+        if (snap.val() === true) {
+            // При обрыве соединения/закрытии вкладки — удаляем отметку игрока
+            myPresenceRef.onDisconnect().remove();
+            myPresenceRef.set(true);
+        }
+    });
+}
+
+// Глобальный слушатель активных игроков (определяет, нужно ли чистить комнату)
+database.ref(`rooms/${roomID}/activePlayers`).on('value', (snapshot) => {
+    const activePlayers = snapshot.val();
+    // Если игроков нет совсем — регистрируем удаление комнаты при отключении
+    if (!activePlayers) {
+        gameRef.remove();
+    }
+});
+
 gameRef.on('value', (snapshot) => {
     const data = snapshot.val();
 
@@ -246,6 +269,7 @@ gameRef.on('value', (snapshot) => {
         }];
         myPlayerIndex = 0;
         gameRef.set(gameState);
+        setupPresence(myPlayerIndex);
         return;
     }
 
@@ -269,26 +293,8 @@ gameRef.on('value', (snapshot) => {
             });
             gameRef.child('players').set(gameState.players);
         }
+        setupPresence(myPlayerIndex);
     }
-
-    // --- БЛОК АВТОУДАЛЕНИЯ ПРИ ВЫХОДЕ ВСЕХ ИГРОКОВ ---
-    const myPresenceRef = database.ref(`rooms/${roomID}/activePlayers/${myPlayerIndex}`);
-    
-    // Удаляем из activePlayers только текущего игрока при закрытии вкладки
-    myPresenceRef.onDisconnect().remove();
-    myPresenceRef.set(true);
-
-    // Слушаем ветку всех участников в сети
-    database.ref(`rooms/${roomID}/activePlayers`).on('value', (presenceSnapshot) => {
-        const activePlayers = presenceSnapshot.val();
-        // Если участников нет вообще, регистрируем удаление всей комнаты
-        if (!activePlayers) {
-            gameRef.onDisconnect().remove();
-        } else {
-            gameRef.onDisconnect().cancel();
-        }
-    });
-    // ------------------------------------------------
 
     for (let i = 0; i < 5; i++) {
         const scene = document.getElementById(`scene-${i}`);
