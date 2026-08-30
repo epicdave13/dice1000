@@ -107,9 +107,11 @@ if (!document.getElementById('game-ui')) {
     uiDiv.style.flexDirection = 'column';
     uiDiv.style.alignItems = 'center';
     uiDiv.innerHTML = `
-        <div id="room-link-info" style="font-size:14px; background:#00000040; padding:10px; border-radius:8px; margin-bottom:15px; text-align:center; width:90%; max-width:400px; box-sizing:border-box;">
-            Комната: <b>${roomID}</b><br>
-            <span style="font-size:12px; color:#aaa;">Отправьте ссылку друзьям для подключения.</span>
+        <div id="room-link-info" style="font-size:14px; background:#00000040; padding:12px; border-radius:8px; margin-bottom:15px; text-align:center; width:90%; max-width:400px; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:8px;">
+            <div>Комната: <b>${roomID}</b></div>
+            <button onclick="copyRoomLink()" class="btn" style="padding:6px 14px; font-size:13px; background:#3498db; margin:0;">
+                Скопировать ссылку
+            </button>
         </div>
         <table class="score-table">
             <thead><tr><th>Игрок</th><th>Счет</th><th>Болты</th><th>Статус</th></tr></thead>
@@ -133,7 +135,35 @@ if (!document.getElementById('bank-btn')) {
 }
 
 // ==========================================
-// 2. МАТЕМАТИКА И СЕТЕВАЯ СИНХРОНИЗАЦИЯ
+// 2. ВСПЛЫВАЮЩИЕ УВЕДОМЛЕНИЯ И КОПИРОВАНИЕ
+// ==========================================
+
+function copyRoomLink() {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+        showToast("Ссылка на комнату скопирована!", "success");
+    }).catch(err => {
+        showToast("Не удалось скопировать ссылку", "danger");
+    });
+}
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerText = message;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-10px)';
+        setTimeout(() => toast.remove(), 500);
+    }, 3000);
+}
+
+// ==========================================
+// 3. МАТЕМАТИКА И СЕТЕВАЯ СИНХРОНИЗАЦИЯ
 // ==========================================
 
 function calculateDiceScore(diceObjects) {
@@ -271,7 +301,7 @@ gameRef.on('value', (snapshot) => {
 });
 
 // ==========================================
-// 3. СЕТЕВОЙ БРОСОК И РУЧНОЙ ВЫБОР КОСТЕЙ
+// 4. СЕТЕВОЙ БРОСОК И РУЧНОЙ ВЫБОР КОСТЕЙ
 // ==========================================
 
 function toggleSelect(id) {
@@ -452,7 +482,7 @@ function bankScore() {
 }
 
 // ==========================================
-// 4. ПРАВИЛА (БОЧКИ, ОБГОНЫ, САМОСВАЛ) И UI
+// 5. ПРАВИЛА (БОЧКИ, ОБГОНЫ, САМОСВАЛ) И UI
 // ==========================================
 
 function checkOvertake() {
@@ -541,7 +571,6 @@ function endTurn(saveScore) {
         }
     }
 
-    // Переключение хода по кругу между всеми игроками
     gameState.currentPlayer = (gameState.currentPlayer + 1) % gameState.players.length;
     gameState.turnScore = 0;
     gameState.isFirstRollInTurn = true;
@@ -560,22 +589,6 @@ function endTurn(saveScore) {
 function isPlayerOnBarrel(score) {
     if ((score >= 200 && score < 300) || (score >= 600 && score < 700) || (score >= 880 && score < 1000)) return true;
     return false;
-}
-
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
-    if (!container) return;
-
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerText = message;
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(-10px)';
-        setTimeout(() => toast.remove(), 500);
-    }, 3000);
 }
 
 function updateUI() {
@@ -651,6 +664,5 @@ function updateUI() {
 }
 
 function resetGame() {
-    // Полное удаление комнаты из Firebase после завершения игры
     gameRef.remove();
 }
