@@ -655,5 +655,5 @@ function resetGame() {
     gameState.mustConfirm = false;
     gameState.lastRollDiceObjects = [];
     gameState.lastCalculatedScore = 0;
-    gameRef.set(gameState);
+    gameRef.remove();
 }
