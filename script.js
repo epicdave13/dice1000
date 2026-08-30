@@ -17,29 +17,27 @@ const database = firebase.database();
 
 const urlParams = new URLSearchParams(window.location.search);
 let roomID = urlParams.get('room');
-let myPlayerIndex = urlParams.get('player');
 
 if (!roomID) {
     roomID = Math.floor(1000 + Math.random() * 9000);
-    myPlayerIndex = 0;
-    window.history.pushState({}, '', `?room=${roomID}&player=0`);
-} else if (myPlayerIndex === null) {
-    myPlayerIndex = 1;
-    window.history.pushState({}, '', `?room=${roomID}&player=1`);
+    window.history.pushState({}, '', `?room=${roomID}`);
 }
 
-myPlayerIndex = parseInt(myPlayerIndex);
 const gameRef = database.ref(`rooms/${roomID}`);
 
-// Ввод имени игрока при входе
+// Ввод имени игрока для текущей комнаты
 let savedName = sessionStorage.getItem(`dice_player_name_${roomID}`);
 if (!savedName) {
-    savedName = prompt("Введите ваше имя:", myPlayerIndex === 0 ? "Игрок 1" : "Игрок 2");
-    if (!savedName || !savedName.trim()) {
-        savedName = myPlayerIndex === 0 ? "Игрок 1" : "Игрок 2";
+    savedName = prompt("Введите ваше имя:") || "";
+    if (!savedName.trim()) {
+        savedName = "Игрок " + Math.floor(Math.random() * 100);
     }
     sessionStorage.setItem(`dice_player_name_${roomID}`, savedName.trim());
+} else {
+    savedName = savedName.trim();
 }
+
+let myPlayerIndex = null;
 
 const faceTransforms = {
     1: 'rotateX(0deg) rotateY(0deg)',
@@ -51,11 +49,9 @@ const faceTransforms = {
 };
 
 let gameState = {
+    gameStarted: false,
     currentPlayer: 0,
-    players: [
-        { name: "Игрок 1", totalScore: 0, bolts: 0, barrelAttempts: 0, hasEnteredGame: false },
-        { name: "Игрок 2", totalScore: 0, bolts: 0, barrelAttempts: 0, hasEnteredGame: false }
-    ],
+    players: [],
     turnScore: 0,
     isFirstRollInTurn: true,
     mustConfirm: false,
@@ -113,7 +109,7 @@ if (!document.getElementById('game-ui')) {
     uiDiv.innerHTML = `
         <div id="room-link-info" style="font-size:14px; background:#00000040; padding:10px; border-radius:8px; margin-bottom:15px; text-align:center; width:90%; max-width:400px; box-sizing:border-box;">
             Комната: <b>${roomID}</b><br>
-            <span style="font-size:12px; color:#aaa;">Отправьте ссылку без параметров другу.</span>
+            <span style="font-size:12px; color:#aaa;">Отправьте ссылку друзьям для подключения.</span>
         </div>
         <table class="score-table">
             <thead><tr><th>Игрок</th><th>Счет</th><th>Болты</th><th>Статус</th></tr></thead>
@@ -208,19 +204,41 @@ function calculateDiceScore(diceObjects) {
 
 gameRef.on('value', (snapshot) => {
     const data = snapshot.val();
+
     if (!data) {
-        gameState.players[myPlayerIndex].name = savedName;
+        // Создание новой комнаты
+        gameState.players = [{
+            name: savedName,
+            totalScore: 0,
+            bolts: 0,
+            barrelAttempts: 0,
+            hasEnteredGame: false
+        }];
+        myPlayerIndex = 0;
         gameRef.set(gameState);
         return;
     }
 
     gameState = data;
+    if (!gameState.players) gameState.players = [];
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
 
-    // Обновляем свое имя в базе, если оно еще дефолтное
-    if (gameState.players[myPlayerIndex] && gameState.players[myPlayerIndex].name !== savedName) {
-        gameState.players[myPlayerIndex].name = savedName;
-        gameRef.child(`players/${myPlayerIndex}/name`).set(savedName);
+    // Подключение игрока к существующей комнате
+    if (myPlayerIndex === null) {
+        let existingIndex = gameState.players.findIndex(p => p.name === savedName);
+        if (existingIndex !== -1) {
+            myPlayerIndex = existingIndex;
+        } else {
+            myPlayerIndex = gameState.players.length;
+            gameState.players.push({
+                name: savedName,
+                totalScore: 0,
+                bolts: 0,
+                barrelAttempts: 0,
+                hasEnteredGame: false
+            });
+            gameRef.child('players').set(gameState.players);
+        }
     }
 
     for (let i = 0; i < 5; i++) {
@@ -296,7 +314,7 @@ function recalculateScoreFromSelected() {
 
 function rollAll() {
     if (gameState.currentPlayer !== myPlayerIndex) {
-        showToast("Сейчас ход вашего соперника! Ожидайте.", "warning");
+        showToast("Сейчас ход другого игрока! Ожидайте.", "warning");
         return;
     }
 
@@ -369,7 +387,7 @@ function rollAll() {
         const activePlayer = gameState.players[myPlayerIndex];
 
         if (calculation.score === 0) {
-            let message = `Выпало 0 очков! Ход переходит к сопернику.`;
+            let message = `Выпало 0 очков! Ход переходит к следующему игроку.`;
 
             if (gameState.isFirstRollInTurn && activePlayer.totalScore >= 50 && !isPlayerOnBarrel(activePlayer.totalScore)) {
                 activePlayer.bolts++;
@@ -439,19 +457,17 @@ function bankScore() {
 
 function checkOvertake() {
     const currentIdx = gameState.currentPlayer;
-    const opponentIdx = currentIdx === 0 ? 1 : 0;
-
     const currentPlayer = gameState.players[currentIdx];
-    const opponentPlayer = gameState.players[opponentIdx];
-
-    // Очки игрока до списания за этот ход
     let oldScore = currentPlayer.totalScore - gameState.turnScore;
 
-    // Обгон происходит, если до хода текущий игрок отставал или был равен сопернику, а теперь строго обогнал его
-    if (oldScore <= opponentPlayer.totalScore && currentPlayer.totalScore > opponentPlayer.totalScore && opponentPlayer.totalScore > 0) {
-        opponentPlayer.totalScore = Math.max(0, opponentPlayer.totalScore - 50);
-        showToast(`Обгон! ${currentPlayer.name} обошел соперника ${opponentPlayer.name}. Списано 50 очков!`, "success");
-    }
+    gameState.players.forEach((oppPlayer, oppIdx) => {
+        if (oppIdx !== currentIdx && oppPlayer.totalScore > 0) {
+            if (oldScore <= oppPlayer.totalScore && currentPlayer.totalScore > oppPlayer.totalScore) {
+                oppPlayer.totalScore = Math.max(0, oppPlayer.totalScore - 50);
+                showToast(`Обгон! ${currentPlayer.name} обошел ${oppPlayer.name}. У соперника списано 50 очков!`, "success");
+            }
+        }
+    });
 }
 
 function endTurn(saveScore) {
@@ -525,7 +541,8 @@ function endTurn(saveScore) {
         }
     }
 
-    gameState.currentPlayer = gameState.currentPlayer === 0 ? 1 : 0;
+    // Переключение хода по кругу между всеми игроками
+    gameState.currentPlayer = (gameState.currentPlayer + 1) % gameState.players.length;
     gameState.turnScore = 0;
     gameState.isFirstRollInTurn = true;
     gameState.mustConfirm = false;
@@ -564,16 +581,11 @@ function showToast(message, type = 'info') {
 function updateUI() {
     if (!gameState.players || !Array.isArray(gameState.players)) return;
 
-    const p0 = gameState.players[0] || { name: "Игрок 1", totalScore: 0, bolts: 0, barrelAttempts: 0 };
-    const p1 = gameState.players[1] || { name: "Игрок 2", totalScore: 0, bolts: 0, barrelAttempts: 0 };
     const activeIndex = gameState.currentPlayer;
-
-    const p0Name = (myPlayerIndex === 0) ? `${p0.name} (Вы)` : p0.name;
-    const p1Name = (myPlayerIndex === 1) ? `${p1.name} (Вы)` : p1.name;
 
     const turnElement = document.getElementById('player-turn');
     if (turnElement) {
-        turnElement.innerText = `Ход: ${activeIndex === myPlayerIndex ? 'ВАШ ХОД!' : 'Ожидайте соперника...'}`;
+        turnElement.innerText = `Ход: ${activeIndex === myPlayerIndex ? 'ВАШ ХОД!' : `Ходит ${gameState.players[activeIndex]?.name || 'соперник'}`}`;
     }
 
     const rollBtn = document.getElementById('roll-btn');
@@ -612,20 +624,14 @@ function updateUI() {
 
     const tableBody = document.getElementById('score-table-body');
     if (tableBody) {
-        tableBody.innerHTML = `
-            <tr class="${activeIndex === 0 ? 'active-row' : ''}">
-                <td>${p0Name}</td>
-                <td><b>${p0.totalScore || 0}</b></td>
-                <td>${getBoltStars(p0.bolts)}</td>
-                <td>${getStatusBadge(p0)}</td>
+        tableBody.innerHTML = gameState.players.map((p, idx) => `
+            <tr class="${activeIndex === idx ? 'active-row' : ''}">
+                <td>${idx === myPlayerIndex ? `${p.name} (Вы)` : p.name}</td>
+                <td><b>${p.totalScore || 0}</b></td>
+                <td>${getBoltStars(p.bolts)}</td>
+                <td>${getStatusBadge(p)}</td>
             </tr>
-            <tr class="${activeIndex === 1 ? 'active-row' : ''}">
-                <td>${p1Name}</td>
-                <td><b>${p1.totalScore || 0}</b></td>
-                <td>${getBoltStars(p1.bolts)}</td>
-                <td>${getStatusBadge(p1)}</td>
-            </tr>
-        `;
+        `).join('');
     }
 
     const turnStatus = document.getElementById('turn-status');
@@ -645,15 +651,6 @@ function updateUI() {
 }
 
 function resetGame() {
-    gameState.players = [
-        { name: gameState.players[0]?.name || "Игрок 1", totalScore: 0, bolts: 0, barrelAttempts: 0, hasEnteredGame: false },
-        { name: gameState.players[1]?.name || "Игрок 2", totalScore: 0, bolts: 0, barrelAttempts: 0, hasEnteredGame: false }
-    ];
-    gameState.currentPlayer = 0;
-    gameState.turnScore = 0;
-    gameState.isFirstRollInTurn = true;
-    gameState.mustConfirm = false;
-    gameState.lastRollDiceObjects = [];
-    gameState.lastCalculatedScore = 0;
+    // Полное удаление комнаты из Firebase после завершения игры
     gameRef.remove();
 }
