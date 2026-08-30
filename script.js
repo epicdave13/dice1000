@@ -25,6 +25,9 @@ if (!roomID) {
 
 const gameRef = database.ref(`rooms/${roomID}`);
 
+// Локальный флаг защиты от спам-кликов по кнопке броска
+let isRolling = false;
+
 // Ввод имени игрока для текущей комнаты
 let savedName = sessionStorage.getItem(`dice_player_name_${roomID}`);
 if (!savedName) {
@@ -239,17 +242,15 @@ function setupPresence(playerIndex) {
 
     connectedRef.on('value', (snap) => {
         if (snap.val() === true) {
-            // При обрыве соединения/закрытии вкладки — удаляем отметку игрока
             myPresenceRef.onDisconnect().remove();
             myPresenceRef.set(true);
         }
     });
 }
 
-// Глобальный слушатель активных игроков (определяет, нужно ли чистить комнату)
+// Глобальный слушатель активных игроков (очистка неактивных комнат)
 database.ref(`rooms/${roomID}/activePlayers`).on('value', (snapshot) => {
     const activePlayers = snapshot.val();
-    // Если игроков нет совсем — регистрируем удаление комнаты при отключении
     if (!activePlayers) {
         gameRef.remove();
     }
@@ -330,7 +331,7 @@ gameRef.on('value', (snapshot) => {
 // ==========================================
 
 function toggleSelect(id) {
-    if (gameState.currentPlayer !== myPlayerIndex) return;
+    if (gameState.currentPlayer !== myPlayerIndex || isRolling) return;
     if (gameState.mustConfirm) return;
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
 
@@ -373,6 +374,9 @@ function rollAll() {
         return;
     }
 
+    // Защита от слишком быстрых кликов по кнопке
+    if (isRolling) return;
+
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
 
     let selectedCountFromLastRoll = 0;
@@ -386,6 +390,9 @@ function rollAll() {
         showToast("Вы должны оставить отложенным хотя бы один кубик из ТЕКУЩЕГО броска!", "warning");
         return;
     }
+
+    isRolling = true;
+    updateUI();
 
     let activeIndices = [];
 
@@ -438,6 +445,7 @@ function rollAll() {
     });
 
     setTimeout(() => {
+        isRolling = false;
         const calculation = calculateDiceScore(diceObjects);
         const activePlayer = gameState.players[myPlayerIndex];
 
@@ -484,7 +492,7 @@ function rollAll() {
 }
 
 function bankScore() {
-    if (gameState.currentPlayer !== myPlayerIndex) return;
+    if (gameState.currentPlayer !== myPlayerIndex || isRolling) return;
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
 
     if (gameState.mustConfirm) {
@@ -629,7 +637,7 @@ function updateUI() {
     const rollBtn = document.getElementById('roll-btn');
     const bankBtn = document.getElementById('bank-btn');
     if (rollBtn && bankBtn) {
-        if (activeIndex === myPlayerIndex) {
+        if (activeIndex === myPlayerIndex && !isRolling) {
             rollBtn.disabled = false;
             rollBtn.style.opacity = "1";
             bankBtn.disabled = false;
