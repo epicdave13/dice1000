@@ -25,10 +25,9 @@ if (!roomID) {
 
 const gameRef = database.ref(`rooms/${roomID}`);
 
-// Локальный флаг защиты от спам-кликов по кнопке броска
 let isRolling = false;
+let activePlayersMap = {};
 
-// Ввод имени игрока для текущей комнаты
 let savedName = sessionStorage.getItem(`dice_player_name_${roomID}`);
 if (!savedName) {
     savedName = prompt("Введите ваше имя:") || "";
@@ -235,7 +234,6 @@ function calculateDiceScore(diceObjects) {
     return { score: score, scoringDiceCount: scoringDiceCount, scoringIndices: scoringIndices };
 }
 
-// Отслеживание присутствия конкретного игрока
 function setupPresence(playerIndex) {
     const myPresenceRef = database.ref(`rooms/${roomID}/activePlayers/${playerIndex}`);
     const connectedRef = database.ref('.info/connected');
@@ -244,23 +242,41 @@ function setupPresence(playerIndex) {
         if (snap.val() === true) {
             myPresenceRef.onDisconnect().remove();
             myPresenceRef.set(true);
+
+            // Проверяем, если мы единственный активный игрок — ставим на удаление всю комнату при закрытии
+            database.ref(`rooms/${roomID}/activePlayers`).once('value', (snapshot) => {
+                const active = snapshot.val() || {};
+                const activeKeys = Object.keys(active);
+                if (activeKeys.length <= 1) {
+                    gameRef.onDisconnect().remove();
+                } else {
+                    gameRef.onDisconnect().cancel();
+                }
+            });
         }
     });
 }
 
-// Глобальный слушатель активных игроков (очистка неактивных комнат)
+// Отслеживание онлайн игроков и очистка комнаты
 database.ref(`rooms/${roomID}/activePlayers`).on('value', (snapshot) => {
     const activePlayers = snapshot.val();
-    if (!activePlayers) {
+    
+    // Безопасная проверка: если нет объектов или нет ни одного ключа со значением true
+    const activeKeys = activePlayers ? Object.keys(activePlayers).filter(k => activePlayers[k] === true) : [];
+    
+    if (activeKeys.length === 0) {
+        activePlayersMap = {};
         gameRef.remove();
+    } else {
+        activePlayersMap = activePlayers;
     }
+    updateUI();
 });
 
 gameRef.on('value', (snapshot) => {
     const data = snapshot.val();
 
     if (!data) {
-        // Создание новой комнаты
         gameState.players = [{
             name: savedName,
             totalScore: 0,
@@ -278,7 +294,6 @@ gameRef.on('value', (snapshot) => {
     if (!gameState.players) gameState.players = [];
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
 
-    // Подключение игрока к существующей комнате
     if (myPlayerIndex === null) {
         let existingIndex = gameState.players.findIndex(p => p.name === savedName);
         if (existingIndex !== -1) {
@@ -374,7 +389,6 @@ function rollAll() {
         return;
     }
 
-    // Защита от слишком быстрых кликов по кнопке
     if (isRolling) return;
 
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
@@ -657,7 +671,12 @@ function updateUI() {
         return "<span class='bolt-indicator'>⚡ ⚡ ⚡</span>";
     };
 
-    const getStatusBadge = (playerObj) => {
+    const getStatusBadge = (playerObj, playerIdx) => {
+        const isOnline = Boolean(activePlayersMap && activePlayersMap[playerIdx] === true);
+        if (!isOnline) {
+            return "<span class='status-badge' style='background:#7f8c8d;'>Оффлайн</span>";
+        }
+
         let score = playerObj.totalScore || 0;
         if ((score >= 200 && score < 300) || (score >= 600 && score < 700)) {
             return "<span class='status-badge barrel'>На бочке</span>";
@@ -665,7 +684,7 @@ function updateUI() {
         if (score >= 880 && score < 1000) {
             return `<span class='status-badge barrel'>ФИНАЛ (${3 - (playerObj.barrelAttempts || 0)} ходов)</span>`;
         }
-        return "<span class='status-badge'>В игре</span>";
+        return "<span class='status-badge' style='background:#2ecc71;'>В сети</span>";
     };
 
     const tableBody = document.getElementById('score-table-body');
@@ -675,7 +694,7 @@ function updateUI() {
                 <td>${idx === myPlayerIndex ? `${p.name} (Вы)` : p.name}</td>
                 <td><b>${p.totalScore || 0}</b></td>
                 <td>${getBoltStars(p.bolts)}</td>
-                <td>${getStatusBadge(p)}</td>
+                <td>${getStatusBadge(p, idx)}</td>
             </tr>
         `).join('');
     }
