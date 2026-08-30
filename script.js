@@ -32,13 +32,13 @@ myPlayerIndex = parseInt(myPlayerIndex);
 const gameRef = database.ref(`rooms/${roomID}`);
 
 // Ввод имени игрока при входе
-let savedName = localStorage.getItem('dice_player_name');
+let savedName = sessionStorage.getItem(`dice_player_name_${roomID}`);
 if (!savedName) {
     savedName = prompt("Введите ваше имя:", myPlayerIndex === 0 ? "Игрок 1" : "Игрок 2");
     if (!savedName || !savedName.trim()) {
         savedName = myPlayerIndex === 0 ? "Игрок 1" : "Игрок 2";
     }
-    localStorage.setItem('dice_player_name', savedName.trim());
+    sessionStorage.setItem(`dice_player_name_${roomID}`, savedName.trim());
 }
 
 const faceTransforms = {
