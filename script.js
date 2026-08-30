@@ -271,6 +271,25 @@ gameRef.on('value', (snapshot) => {
         }
     }
 
+    // --- БЛОК АВТОУДАЛЕНИЯ ПРИ ВЫХОДЕ ВСЕХ ИГРОКОВ ---
+    const myPresenceRef = database.ref(`rooms/${roomID}/activePlayers/${myPlayerIndex}`);
+    
+    // Удаляем из activePlayers только текущего игрока при закрытии вкладки
+    myPresenceRef.onDisconnect().remove();
+    myPresenceRef.set(true);
+
+    // Слушаем ветку всех участников в сети
+    database.ref(`rooms/${roomID}/activePlayers`).on('value', (presenceSnapshot) => {
+        const activePlayers = presenceSnapshot.val();
+        // Если участников нет вообще, регистрируем удаление всей комнаты
+        if (!activePlayers) {
+            gameRef.onDisconnect().remove();
+        } else {
+            gameRef.onDisconnect().cancel();
+        }
+    });
+    // ------------------------------------------------
+
     for (let i = 0; i < 5; i++) {
         const scene = document.getElementById(`scene-${i}`);
         const cube = document.getElementById(`cube-${i}`);
