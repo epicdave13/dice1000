@@ -801,3 +801,24 @@ function updateUI() {
 function resetGame() {
     gameRef.remove();
 }
+
+// ==========================================
+// 6. УПРАВЛЕНИЕ СПРАВОЧНЫМ МОДАЛЬНЫМ ОКНОМ
+// ==========================================
+
+function toggleHelpModal(show) {
+    const modal = document.getElementById('help-modal');
+    if (!modal) return;
+    
+    if (show) {
+        modal.classList.add('active');
+    } else {
+        modal.classList.remove('active');
+    }
+}
+
+function closeModalOnOverlay(event) {
+    if (event.target.id === 'help-modal') {
+        toggleHelpModal(false);
+    }
+}
