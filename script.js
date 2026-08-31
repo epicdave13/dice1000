@@ -168,23 +168,31 @@ function showToast(message, type = 'info') {
 // 3. МАТЕМАТИКА И СЕТЕВАЯ СИНХРОНИЗАЦИЯ
 // ==========================================
 
+// Функция возвращает не только очки, но и группировку индексов комбинаций
 function calculateDiceScore(diceObjects) {
-    if (!diceObjects || diceObjects.length === 0) return { score: 0, scoringDiceCount: 0, scoringIndices: [] };
+    if (!diceObjects || diceObjects.length === 0) {
+        return { score: 0, scoringDiceCount: 0, scoringIndices: [], groups: [] };
+    }
 
     let counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
     diceObjects.forEach(d => counts[d.value]++);
 
     let scoringIndices = [];
+    let groups = [];
 
     if (diceObjects.length === 5) {
         let isSmallStraight = Object.values(counts).slice(0, 5).every(v => v === 1);
         let isBigStraight = Object.values(counts).slice(1, 6).every(v => v === 1);
 
-        if (isBigStraight) {
-            return { score: 250, scoringDiceCount: 5, scoringIndices: diceObjects.map(d => d.index) };
-        }
-        if (isSmallStraight) {
-            return { score: 125, scoringDiceCount: 5, scoringIndices: diceObjects.map(d => d.index) };
+        if (isBigStraight || isSmallStraight) {
+            let score = isBigStraight ? 250 : 125;
+            let indices = diceObjects.map(d => d.index);
+            return {
+                score: score,
+                scoringDiceCount: 5,
+                scoringIndices: indices,
+                groups: [indices]
+            };
         }
     }
 
@@ -199,9 +207,14 @@ function calculateDiceScore(diceObjects) {
             handledNums[num] = true;
             scoringDiceCount += count;
 
+            let groupIndices = [];
             diceObjects.forEach(d => {
-                if (d.value === num) scoringIndices.push(d.index);
+                if (d.value === num) {
+                    scoringIndices.push(d.index);
+                    groupIndices.push(d.index);
+                }
             });
+            groups.push(groupIndices);
 
             if (count === 5) {
                 let nominal = (num === 1) ? 10 : num;
@@ -224,14 +237,21 @@ function calculateDiceScore(diceObjects) {
             score += 10;
             scoringDiceCount++;
             scoringIndices.push(d.index);
+            groups.push([d.index]);
         } else if (d.value === 5) {
             score += 5;
             scoringDiceCount++;
             scoringIndices.push(d.index);
+            groups.push([d.index]);
         }
     });
 
-    return { score: score, scoringDiceCount: scoringDiceCount, scoringIndices: scoringIndices };
+    return {
+        score: score,
+        scoringDiceCount: scoringDiceCount,
+        scoringIndices: scoringIndices,
+        groups: groups
+    };
 }
 
 function setupPresence(playerIndex) {
@@ -243,7 +263,6 @@ function setupPresence(playerIndex) {
             myPresenceRef.onDisconnect().remove();
             myPresenceRef.set(true);
 
-            // Проверяем, если мы единственный активный игрок — ставим на удаление всю комнату при закрытии
             database.ref(`rooms/${roomID}/activePlayers`).once('value', (snapshot) => {
                 const active = snapshot.val() || {};
                 const activeKeys = Object.keys(active);
@@ -257,11 +276,8 @@ function setupPresence(playerIndex) {
     });
 }
 
-// Отслеживание онлайн игроков и очистка комнаты
 database.ref(`rooms/${roomID}/activePlayers`).on('value', (snapshot) => {
     const activePlayers = snapshot.val();
-    
-    // Безопасная проверка: если нет объектов или нет ни одного ключа со значением true
     const activeKeys = activePlayers ? Object.keys(activePlayers).filter(k => activePlayers[k] === true) : [];
     
     if (activeKeys.length === 0) {
@@ -342,7 +358,7 @@ gameRef.on('value', (snapshot) => {
 });
 
 // ==========================================
-// 4. СЕТЕВОЙ БРОСОК И РУЧНОЙ ВЫБОР КОСТЕЙ
+// 4. СЕТЕВОЙ БРОСОК И ВЫБОР РЕЗУЛЬТАТИВНЫХ КОСТЕЙ
 // ==========================================
 
 function toggleSelect(id) {
@@ -350,13 +366,32 @@ function toggleSelect(id) {
     if (gameState.mustConfirm) return;
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
 
+    // Проверяем, принадлежит ли кубик текущему броску
     let isDiceFromCurrentRoll = gameState.lastRollDiceObjects.some(d => d.index === id);
     if (!isDiceFromCurrentRoll && !gameState.isFirstRollInTurn) {
         showToast("Этот кубик отложен на предыдущем броске, его нельзя вернуть в игру!", "warning");
         return;
     }
 
-    gameState.selectedDiceIds[id] = !gameState.selectedDiceIds[id];
+    // Считаем доступные комбинации в текущем броске
+    const rollAnalysis = calculateDiceScore(gameState.lastRollDiceObjects);
+
+    // Ограничение: нельзя выбырать нерезультативный кубик
+    if (!rollAnalysis.scoringIndices.includes(id)) {
+        showToast("Нельзя выбрать этот кубик, он не принес очков!", "warning");
+        return;
+    }
+
+    // Находим группу, к которой принадлежит кликнутый кубик (например, тройка или стриты)
+    let targetGroup = rollAnalysis.groups.find(group => group.includes(id));
+    if (!targetGroup) return;
+
+    // Переключаем состояние всей группы одновременно
+    let targetState = !gameState.selectedDiceIds[id];
+    targetGroup.forEach(idx => {
+        gameState.selectedDiceIds[idx] = targetState;
+    });
+
     recalculateScoreFromSelected();
 }
 
@@ -390,7 +425,6 @@ function rollAll() {
     }
 
     if (isRolling) return;
-
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
 
     let selectedCountFromLastRoll = 0;
@@ -401,7 +435,7 @@ function rollAll() {
     });
 
     if (!gameState.isFirstRollInTurn && !gameState.mustConfirm && selectedCountFromLastRoll === 0) {
-        showToast("Вы должны оставить отложенным хотя бы один кубик из ТЕКУЩЕГО броска!", "warning");
+        showToast("Вы должны оставить отложенным хотя бы один результативный кубик из ТЕКУЩЕГО броска!", "warning");
         return;
     }
 
@@ -481,6 +515,7 @@ function rollAll() {
             return;
         }
 
+        // Автоматически выделяем все выпавшие результативные кубики (целиком)
         calculation.scoringIndices.forEach(idx => {
             gameState.selectedDiceIds[idx] = true;
         });
@@ -511,6 +546,12 @@ function bankScore() {
 
     if (gameState.mustConfirm) {
         showToast("Вы не можете записать очки сейчас! Требуется подтверждающий бросок.", "warning");
+        return;
+    }
+
+    // Запрет записи 0 очков
+    if (!gameState.turnScore || gameState.turnScore === 0) {
+        showToast("Нельзя записать 0 очков! Сначала выберите результативные кубики.", "warning");
         return;
     }
 
