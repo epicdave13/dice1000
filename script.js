@@ -69,8 +69,9 @@ let gameState = {
     selectedDiceIds: [false, false, false, false, false]
 };
 
+// Генерация 3D кубиков
 const cubeTemplate = (id) => `
-    <div class="scene hidden" id="scene-${id}" onclick="toggleSelect(${id})">
+    <div class="scene hidden" id="scene-${id}">
         <div class="cube" id="cube-${id}">
             <div class="face front"><div class="dot"></div></div>
             <div class="face back six">
@@ -101,20 +102,23 @@ if (board) {
     for (let i = 0; i < 5; i++) {
         board.innerHTML += cubeTemplate(i);
     }
+    for (let i = 0; i < 5; i++) {
+        const scene = document.getElementById(`scene-${i}`);
+        if (scene) {
+            scene.addEventListener('click', () => toggleSelect(i));
+        }
+    }
 }
 
-if (!document.getElementById('game-ui')) {
+// Генерация пользовательского интерфейса
+const gameScreen = document.getElementById('game-screen');
+if (gameScreen && !document.getElementById('game-ui')) {
     const uiDiv = document.createElement('div');
     uiDiv.id = 'game-ui';
-    uiDiv.style.margin = '0 0 20px 0';
-    uiDiv.style.width = '100%';
-    uiDiv.style.display = 'flex';
-    uiDiv.style.flexDirection = 'column';
-    uiDiv.style.alignItems = 'center';
     uiDiv.innerHTML = `
-        <div id="room-link-info" style="font-size:14px; background:#00000040; padding:12px; border-radius:8px; margin-bottom:15px; text-align:center; width:90%; max-width:400px; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:8px;">
+        <div id="room-link-info" style="font-size:14px; background:rgba(0,0,0,0.2); padding:12px; border-radius:8px; margin-bottom:15px; text-align:center; width:100%; max-width:400px; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:8px;">
             <div>Комната: <b>${roomID}</b></div>
-            <button onclick="copyRoomLink()" class="btn" style="padding:6px 14px; font-size:13px; background:#3498db; margin:0;">
+            <button id="copy-link-btn" class="btn" style="padding:6px 14px; font-size:13px; background:#3498db; margin:0;">
                 Скопировать ссылку
             </button>
         </div>
@@ -125,19 +129,42 @@ if (!document.getElementById('game-ui')) {
         <div id="player-turn" style="font-weight:bold; color:#f1c40f; margin: 15px 0 5px 0; font-size:20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Подключение...</div>
         <div id="turn-status" style="color:#2ecc71; font-size: 18px; font-weight: bold; margin-bottom: 20px;">Очки за ход: 0</div>
     `;
-    document.body.prepend(uiDiv);
+    gameScreen.prepend(uiDiv);
+
+    const copyBtn = document.getElementById('copy-link-btn');
+    if (copyBtn) copyBtn.onclick = copyRoomLink;
 }
 
 const rollBtnElem = document.getElementById('roll-btn');
-if (rollBtnElem && !document.getElementById('bank-btn')) {
-    const bankBtn = document.createElement('button');
-    bankBtn.id = 'bank-btn';
-    bankBtn.className = 'btn';
-    bankBtn.style.backgroundColor = '#2ecc71';
-    bankBtn.style.marginTop = '10px';
-    bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
-    bankBtn.onclick = bankScore;
-    rollBtnElem.parentNode.appendChild(bankBtn);
+if (rollBtnElem) {
+    rollBtnElem.onclick = rollAll;
+    if (!document.getElementById('bank-btn')) {
+        const bankBtn = document.createElement('button');
+        bankBtn.id = 'bank-btn';
+        bankBtn.className = 'btn';
+        bankBtn.style.backgroundColor = '#2ecc71';
+        bankBtn.style.marginTop = '10px';
+        bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
+        bankBtn.onclick = bankScore;
+        rollBtnElem.parentNode.appendChild(bankBtn);
+    }
+}
+
+// Настройка модального окна правил
+const helpBtn = document.getElementById('help-btn');
+const rulesModal = document.getElementById('rules-modal');
+const modalCloseBtn = document.getElementById('modal-close-btn');
+
+if (helpBtn && rulesModal) {
+    helpBtn.onclick = () => { rulesModal.style.display = 'flex'; };
+}
+if (modalCloseBtn && rulesModal) {
+    modalCloseBtn.onclick = () => { rulesModal.style.display = 'none'; };
+}
+if (rulesModal) {
+    rulesModal.onclick = (e) => {
+        if (e.target === rulesModal) rulesModal.style.display = 'none';
+    };
 }
 
 // ==========================================
@@ -147,7 +174,7 @@ if (rollBtnElem && !document.getElementById('bank-btn')) {
 function copyRoomLink() {
     navigator.clipboard.writeText(window.location.href).then(() => {
         showToast("Ссылка на комнату скопирована!", "success");
-    }).catch(err => {
+    }).catch(() => {
         showToast("Не удалось скопировать ссылку", "danger");
     });
 }
@@ -354,7 +381,7 @@ gameRef.on('value', (snapshot) => {
 });
 
 // ==========================================
-// 4. СЕТЕВОЙ БРОСОК И ИНТЕЛЛЕКТУАЛЬНЫЙ ВЫБОР
+// 4. СЕТЕВОЙ БРОСОК И ВЫБОР КОМБИНАЦИЙ
 // ==========================================
 
 function toggleSelect(id) {
