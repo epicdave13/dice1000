@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, set, push, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-// 1. Конфигурация Firebase (замените своими ключами)
+// Конфигурация Firebase
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "dice1000-YOUR_ID.firebaseapp.com",
@@ -15,8 +15,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-// Состояние игры
 let currentRoomId = null;
+
+// Состояние игры
 let gameState = {
   currentDiceValues: [1, 1, 1, 1, 1],
   selectedDice: [false, false, false, false, false],
@@ -24,7 +25,7 @@ let gameState = {
   isRolling: false
 };
 
-// --- МЕНЮ И ЛОББИ ---
+// --- УПРАВЛЕНИЕ ЛОББИ И КОМНАТАМИ ---
 
 function listenToRooms() {
   const roomsRef = ref(database, 'rooms');
@@ -77,13 +78,21 @@ window.joinGame = function(roomId) {
   currentRoomId = roomId;
   document.getElementById('main-menu').style.display = 'none';
   document.getElementById('game-screen').style.display = 'block';
+  document.getElementById('room-info').innerText = `Комната #${roomId.slice(-4)}`;
 
-  // Очистка комнаты при выходе
   const playerRef = ref(database, `rooms/${roomId}/players/player_${Date.now()}`);
   onDisconnect(playerRef).remove();
+
+  renderDice();
 };
 
-// --- ПРАВИЛА И МОДАЛЬНОЕ ОКНО ---
+window.leaveRoom = function() {
+  currentRoomId = null;
+  document.getElementById('game-screen').style.display = 'none';
+  document.getElementById('main-menu').style.display = 'block';
+};
+
+// --- МОДАЛЬНОЕ ОКНО ПРАВИЛ ---
 
 window.openRules = function() {
   document.getElementById('rules-modal').style.display = 'flex';
@@ -103,51 +112,50 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') window.closeRules();
 });
 
-// --- ЛОГИКА КУБИКОВ И ПРОВЕРКИ РЕЗУЛЬТАТИВНОСТИ ---
+// --- ЛОГИКА КУБИКОВ И ОЧКОВ ---
 
-// Проверка, является ли конкретный кубик частью результативной комбинации
+// Проверка, является ли кубик результативным
 function isScoringDice(index) {
   if (gameState.lockedDice[index]) return false;
 
   const val = gameState.currentDiceValues[index];
   
-  // 1 и 5 всегда приносят очки
+  // 1 и 5 — всегда результативные
   if (val === 1 || val === 5) return true;
 
-  // Считаем количество таких же кубиков среди незафиксированных
+  // Считаем одинаковые значения среди незафиксированных костей
   const activeValues = gameState.currentDiceValues.filter((_, i) => !gameState.lockedDice[i]);
   const count = activeValues.filter(v => v === val).length;
 
-  // Три и более одинаковых кубика приносят очки
+  // Комбинация из 3+ одинаковых кубиков
   return count >= 3;
 }
 
-// Переключение выбора кубика кликом
+// Клик по кубику (выбираем или снимаем выбор)
 window.toggleDiceSelect = function(index) {
-  // 1. Игнорируем зафиксированные ранее кубики
+  // Игнорируем зафиксированные кости
   if (gameState.lockedDice[index]) return;
 
-  // 2. Блокируем клик, если кубик нерезультативный
+  // БЛОКИРОВКА: Клик не работает, если кубик не приносит очков
   if (!isScoringDice(index)) return;
 
-  // 3. Переключаем выбор только для результативных
   gameState.selectedDice[index] = !gameState.selectedDice[index];
   renderDice();
 };
 
-// Бросок кубиков с авто-выделением результативных
+// Бросок кубиков
 window.rollDice = function() {
   if (gameState.isRolling) return;
   gameState.isRolling = true;
 
-  // Генерируем значения для незафиксированных кубиков
+  // Генерируем новые значения незафиксированных кубиков
   for (let i = 0; i < 5; i++) {
     if (!gameState.lockedDice[i]) {
       gameState.currentDiceValues[i] = Math.floor(Math.random() * 6) + 1;
     }
   }
 
-  // Автоматически выделяем только результативные кубики
+  // Автоматически выделяем ВСЕ результативные кубики
   for (let i = 0; i < 5; i++) {
     if (!gameState.lockedDice[i]) {
       gameState.selectedDice[i] = isScoringDice(i);
@@ -158,12 +166,31 @@ window.rollDice = function() {
 
   setTimeout(() => {
     gameState.isRolling = false;
-  }, 300);
+  }, 200);
 };
 
+// Отрисовка кубиков и визуальных состояний
 function renderDice() {
-  // Логика отрисовки кубиков в UI и обновления их состояний (selected / locked)
+  for (let i = 0; i < 5; i++) {
+    const diceEl = document.getElementById(`dice-${i}`);
+    if (!diceEl) continue;
+
+    diceEl.innerText = gameState.currentDiceValues[i];
+
+    // Сброс классов
+    diceEl.className = 'dice';
+
+    if (gameState.lockedDice[i]) {
+      diceEl.classList.add('locked');
+    } else if (gameState.selectedDice[i]) {
+      diceEl.classList.add('selected');
+    } else if (isScoringDice(i)) {
+      diceEl.classList.add('selectable');
+    } else {
+      diceEl.classList.add('disabled');
+    }
+  }
 }
 
-// Запуск прослушивания лобби при старте
+// Старт прослушивания комнат
 listenToRooms();
