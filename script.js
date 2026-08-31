@@ -69,9 +69,8 @@ let gameState = {
     selectedDiceIds: [false, false, false, false, false]
 };
 
-// Генерация 3D кубиков
 const cubeTemplate = (id) => `
-    <div class="scene hidden" id="scene-${id}">
+    <div class="scene hidden" id="scene-${id}" onclick="toggleSelect(${id})">
         <div class="cube" id="cube-${id}">
             <div class="face front"><div class="dot"></div></div>
             <div class="face back six">
@@ -97,28 +96,22 @@ const cubeTemplate = (id) => `
 `;
 
 const board = document.getElementById('game-board');
-if (board) {
-    board.innerHTML = '';
-    for (let i = 0; i < 5; i++) {
-        board.innerHTML += cubeTemplate(i);
-    }
-    for (let i = 0; i < 5; i++) {
-        const scene = document.getElementById(`scene-${i}`);
-        if (scene) {
-            scene.addEventListener('click', () => toggleSelect(i));
-        }
-    }
+for (let i = 0; i < 5; i++) {
+    board.innerHTML += cubeTemplate(i);
 }
 
-// Генерация пользовательского интерфейса
-const gameScreen = document.getElementById('game-screen');
-if (gameScreen && !document.getElementById('game-ui')) {
+if (!document.getElementById('game-ui')) {
     const uiDiv = document.createElement('div');
     uiDiv.id = 'game-ui';
+    uiDiv.style.margin = '0 0 20px 0';
+    uiDiv.style.width = '100%';
+    uiDiv.style.display = 'flex';
+    uiDiv.style.flexDirection = 'column';
+    uiDiv.style.alignItems = 'center';
     uiDiv.innerHTML = `
-        <div id="room-link-info" style="font-size:14px; background:rgba(0,0,0,0.2); padding:12px; border-radius:8px; margin-bottom:15px; text-align:center; width:100%; max-width:400px; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:8px;">
+        <div id="room-link-info" style="font-size:14px; background:#00000040; padding:12px; border-radius:8px; margin-bottom:15px; text-align:center; width:90%; max-width:400px; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:8px;">
             <div>Комната: <b>${roomID}</b></div>
-            <button id="copy-link-btn" class="btn" style="padding:6px 14px; font-size:13px; background:#3498db; margin:0;">
+            <button onclick="copyRoomLink()" class="btn" style="padding:6px 14px; font-size:13px; background:#3498db; margin:0;">
                 Скопировать ссылку
             </button>
         </div>
@@ -129,42 +122,18 @@ if (gameScreen && !document.getElementById('game-ui')) {
         <div id="player-turn" style="font-weight:bold; color:#f1c40f; margin: 15px 0 5px 0; font-size:20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Подключение...</div>
         <div id="turn-status" style="color:#2ecc71; font-size: 18px; font-weight: bold; margin-bottom: 20px;">Очки за ход: 0</div>
     `;
-    gameScreen.prepend(uiDiv);
-
-    const copyBtn = document.getElementById('copy-link-btn');
-    if (copyBtn) copyBtn.onclick = copyRoomLink;
+    document.body.prepend(uiDiv);
 }
 
-const rollBtnElem = document.getElementById('roll-btn');
-if (rollBtnElem) {
-    rollBtnElem.onclick = rollAll;
-    if (!document.getElementById('bank-btn')) {
-        const bankBtn = document.createElement('button');
-        bankBtn.id = 'bank-btn';
-        bankBtn.className = 'btn';
-        bankBtn.style.backgroundColor = '#2ecc71';
-        bankBtn.style.marginTop = '10px';
-        bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
-        bankBtn.onclick = bankScore;
-        rollBtnElem.parentNode.appendChild(bankBtn);
-    }
-}
-
-// Настройка модального окна правил
-const helpBtn = document.getElementById('help-btn');
-const rulesModal = document.getElementById('rules-modal');
-const modalCloseBtn = document.getElementById('modal-close-btn');
-
-if (helpBtn && rulesModal) {
-    helpBtn.onclick = () => { rulesModal.style.display = 'flex'; };
-}
-if (modalCloseBtn && rulesModal) {
-    modalCloseBtn.onclick = () => { rulesModal.style.display = 'none'; };
-}
-if (rulesModal) {
-    rulesModal.onclick = (e) => {
-        if (e.target === rulesModal) rulesModal.style.display = 'none';
-    };
+if (!document.getElementById('bank-btn')) {
+    const bankBtn = document.createElement('button');
+    bankBtn.id = 'bank-btn';
+    bankBtn.className = 'btn';
+    bankBtn.style.backgroundColor = '#2ecc71';
+    bankBtn.style.marginTop = '10px';
+    bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
+    bankBtn.onclick = bankScore;
+    document.getElementById('roll-btn').parentNode.appendChild(bankBtn);
 }
 
 // ==========================================
@@ -174,7 +143,7 @@ if (rulesModal) {
 function copyRoomLink() {
     navigator.clipboard.writeText(window.location.href).then(() => {
         showToast("Ссылка на комнату скопирована!", "success");
-    }).catch(() => {
+    }).catch(err => {
         showToast("Не удалось скопировать ссылку", "danger");
     });
 }
@@ -196,29 +165,26 @@ function showToast(message, type = 'info') {
 }
 
 // ==========================================
-// 3. МАТЕМАТИКА И ГРУППИРОВКА КОМБИНАЦИЙ
+// 3. МАТЕМАТИКА И СЕТЕВАЯ СИНХРОНИЗАЦИЯ
 // ==========================================
 
 function calculateDiceScore(diceObjects) {
-    if (!diceObjects || diceObjects.length === 0) return { score: 0, scoringDiceCount: 0, scoringIndices: [], groups: [] };
+    if (!diceObjects || diceObjects.length === 0) return { score: 0, scoringDiceCount: 0, scoringIndices: [] };
 
     let counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
     diceObjects.forEach(d => counts[d.value]++);
 
     let scoringIndices = [];
-    let groups = [];
 
     if (diceObjects.length === 5) {
         let isSmallStraight = Object.values(counts).slice(0, 5).every(v => v === 1);
         let isBigStraight = Object.values(counts).slice(1, 6).every(v => v === 1);
 
         if (isBigStraight) {
-            let idxs = diceObjects.map(d => d.index);
-            return { score: 250, scoringDiceCount: 5, scoringIndices: idxs, groups: [idxs] };
+            return { score: 250, scoringDiceCount: 5, scoringIndices: diceObjects.map(d => d.index) };
         }
         if (isSmallStraight) {
-            let idxs = diceObjects.map(d => d.index);
-            return { score: 125, scoringDiceCount: 5, scoringIndices: idxs, groups: [idxs] };
+            return { score: 125, scoringDiceCount: 5, scoringIndices: diceObjects.map(d => d.index) };
         }
     }
 
@@ -233,14 +199,9 @@ function calculateDiceScore(diceObjects) {
             handledNums[num] = true;
             scoringDiceCount += count;
 
-            let groupIndices = [];
             diceObjects.forEach(d => {
-                if (d.value === num) {
-                    scoringIndices.push(d.index);
-                    groupIndices.push(d.index);
-                }
+                if (d.value === num) scoringIndices.push(d.index);
             });
-            groups.push(groupIndices);
 
             if (count === 5) {
                 let nominal = (num === 1) ? 10 : num;
@@ -263,16 +224,14 @@ function calculateDiceScore(diceObjects) {
             score += 10;
             scoringDiceCount++;
             scoringIndices.push(d.index);
-            groups.push([d.index]);
         } else if (d.value === 5) {
             score += 5;
             scoringDiceCount++;
             scoringIndices.push(d.index);
-            groups.push([d.index]);
         }
     });
 
-    return { score: score, scoringDiceCount: scoringDiceCount, scoringIndices: scoringIndices, groups: groups };
+    return { score: score, scoringDiceCount: scoringDiceCount, scoringIndices: scoringIndices };
 }
 
 function setupPresence(playerIndex) {
@@ -284,6 +243,7 @@ function setupPresence(playerIndex) {
             myPresenceRef.onDisconnect().remove();
             myPresenceRef.set(true);
 
+            // Проверяем, если мы единственный активный игрок — ставим на удаление всю комнату при закрытии
             database.ref(`rooms/${roomID}/activePlayers`).once('value', (snapshot) => {
                 const active = snapshot.val() || {};
                 const activeKeys = Object.keys(active);
@@ -297,10 +257,13 @@ function setupPresence(playerIndex) {
     });
 }
 
+// Отслеживание онлайн игроков и очистка комнаты
 database.ref(`rooms/${roomID}/activePlayers`).on('value', (snapshot) => {
     const activePlayers = snapshot.val();
+    
+    // Безопасная проверка: если нет объектов или нет ни одного ключа со значением true
     const activeKeys = activePlayers ? Object.keys(activePlayers).filter(k => activePlayers[k] === true) : [];
-
+    
     if (activeKeys.length === 0) {
         activePlayersMap = {};
         gameRef.remove();
@@ -354,8 +317,6 @@ gameRef.on('value', (snapshot) => {
         const cube = document.getElementById(`cube-${i}`);
         const dv = gameState.diceVisuals[i];
 
-        if (!scene || !cube) continue;
-
         if (dv.hidden) {
             scene.classList.add('hidden');
         } else {
@@ -381,7 +342,7 @@ gameRef.on('value', (snapshot) => {
 });
 
 // ==========================================
-// 4. СЕТЕВОЙ БРОСОК И ВЫБОР КОМБИНАЦИЙ
+// 4. СЕТЕВОЙ БРОСОК И РУЧНОЙ ВЫБОР КОСТЕЙ
 // ==========================================
 
 function toggleSelect(id) {
@@ -391,23 +352,11 @@ function toggleSelect(id) {
 
     let isDiceFromCurrentRoll = gameState.lastRollDiceObjects.some(d => d.index === id);
     if (!isDiceFromCurrentRoll && !gameState.isFirstRollInTurn) {
-        showToast("Этот кубик отложен на предыдущем броске!", "warning");
+        showToast("Этот кубик отложен на предыдущем броске, его нельзя вернуть в игру!", "warning");
         return;
     }
 
-    const calc = calculateDiceScore(gameState.lastRollDiceObjects);
-    const targetGroup = calc.groups.find(g => g.includes(id));
-
-    if (!targetGroup) {
-        showToast("Этот кубик не приносит очков!", "warning");
-        return;
-    }
-
-    const willSelect = !gameState.selectedDiceIds[id];
-    targetGroup.forEach(idx => {
-        gameState.selectedDiceIds[idx] = willSelect;
-    });
-
+    gameState.selectedDiceIds[id] = !gameState.selectedDiceIds[id];
     recalculateScoreFromSelected();
 }
 
@@ -436,7 +385,7 @@ function recalculateScoreFromSelected() {
 
 function rollAll() {
     if (gameState.currentPlayer !== myPlayerIndex) {
-        showToast("Сейчас ход другого игрока!", "warning");
+        showToast("Сейчас ход другого игрока! Ожидайте.", "warning");
         return;
     }
 
@@ -452,7 +401,7 @@ function rollAll() {
     });
 
     if (!gameState.isFirstRollInTurn && !gameState.mustConfirm && selectedCountFromLastRoll === 0) {
-        showToast("Вы должны отложить хотя бы один результативный кубик!", "warning");
+        showToast("Вы должны оставить отложенным хотя бы один кубик из ТЕКУЩЕГО броска!", "warning");
         return;
     }
 
@@ -580,7 +529,7 @@ function bankScore() {
 }
 
 // ==========================================
-// 5. ПРАВИЛА И UI
+// 5. ПРАВИЛА (БОЧКИ, ОБГОНЫ, САМОСВАЛ) И UI
 // ==========================================
 
 function checkOvertake() {
