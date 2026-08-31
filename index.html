@@ -1,46 +1,61 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>1000 на костях ONLINE</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Игра 1000</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Контейнер для уведомлений -->
-    <div id="toast-container"></div> 
 
-    <!-- Игровое поле, куда JS добавит кубики -->
-    <div class="board" id="game-board"></div>
+  <!-- Кнопка справки (доступна всегда) -->
+  <button class="help-btn" onclick="openRules()">?</button>
 
-    <!-- Кнопки управления -->
-    <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%;">
-        <button class="btn" id="roll-btn" onclick="rollAll()">БРОСИТЬ</button>
+  <!-- Экран Главного Меню -->
+  <div id="main-menu" class="menu-container">
+    
+    <div class="menu-actions">
+      <button class="btn primary-btn" onclick="createNewGame()">Создать игру</button>
     </div>
 
-    <!-- ПОДКЛЮЧАЕМ СТАБИЛЬНЫЕ СКРИПТЫ FIREBASE COMPAT SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <h2>Доступные комнаты</h2>
+    <div id="rooms-list" class="rooms-list">
+      <p>Загрузка комнат...</p>
+    </div>
+  </div>
 
-    <!-- ОТЛАДЧИК ОШИБОК: если JS упадет, мы увидим причину прямо на экране смартфона -->
-    <script>
-        window.onerror = function(message, source, lineno, colno, error) {
-            const errDiv = document.createElement('div');
-            errDiv.style.position = 'fixed';
-            errDiv.style.bottom = '10px';
-            errDiv.style.left = '10px';
-            errDiv.style.background = 'red';
-            errDiv.style.color = 'white';
-            errDiv.style.padding = '10px';
-            errDiv.style.fontSize = '12px';
-            errDiv.style.zIndex = '9999';
-            errDiv.innerText = "Ошибка: " + message + " (Строка: " + lineno + ")";
-            document.body.appendChild(errDiv);
-            return false;
-        };
-    </script>
+  <!-- Игровой экран (скрыт по умолчанию) -->
+  <div id="game-screen" style="display: none;">
+    <!-- Вставьте сюда существующую разметку игрового поля -->
+  </div>
 
-    <!-- Подключаем вашу игровую логику -->
-    <script src="script.js"></script>
+  <!-- Модальное окно правил -->
+  <div id="rules-modal" class="modal-overlay" onclick="closeRulesOnOverlay(event)">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeRules()">&times;</button>
+      <h2>Правила игры «1000»</h2>
+      
+      <div class="rules-info">
+        <div class="rule-box barrel">
+          <h3>🛢️ Бочка</h3>
+          <p><b>Диапазон:</b> 880 – 1000 очков</p>
+          <p>При достижении 880 очков игрок «садится на бочку». Чтобы победить, нужно набрать 120 очков с ограничением по попыткам.</p>
+        </div>
+
+        <div class="rule-box">
+          <h3>🎯 Цель игры</h3>
+          <p>Побеждает тот, кто первым наберет <b>1000 очков</b>.</p>
+        </div>
+
+        <div class="rule-box">
+          <h3>⚠️ Штрафы</h3>
+          <p>При 3 неудачных попытках взятия бочки игрок слетает с нее со штрафом в 120 очков.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Подключение скриптов -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
