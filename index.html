@@ -41,6 +41,33 @@
     </script>
 
     <!-- Подключаем вашу игровую логику -->
+    <!-- Кнопка вызова правил (сверху справа) -->
+<button class="help-btn" onclick="toggleHelpModal(true)" title="Правила бочек">?</button>
+
+<!-- Модальное окно правил -->
+<div class="modal-overlay" id="help-modal" onclick="closeModalOnOverlay(event)">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">Правила бочек 🛢️</div>
+      <button class="close-btn" onclick="toggleHelpModal(false)">&times;</button>
+    </div>
+    <ul class="barrel-list">
+      <li class="barrel-item">
+        <strong>Первая бочка:</strong><br>
+        Интервал <b>200 ➔ 300</b> очков.
+      </li>
+      <li class="barrel-item">
+        <strong>Вторая бочка:</strong><br>
+        Интервал <b>600 ➔ 700</b> очков.
+      </li>
+      <li class="barrel-item" style="border-left-color: #e74c3c;">
+        <strong style="color: #e74c3c;">Финальная бочка:</strong><br>
+        Интервал <b>880 ➔ 1000</b> очков.<br>
+        Дается ровно <b>3 попытки</b>, чтобы набрать 1000+ очков. При неудаче — штраф -100 очков.
+      </li>
+    </ul>
+  </div>
+</div>
     <script src="script.js"></script>
 </body>
 </html>
