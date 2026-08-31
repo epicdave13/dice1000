@@ -3,52 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Игра 1000</title>
+  <title>Игра 1000 — Кости</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+  <!-- Контейнер для всплывающих уведомлений -->
+  <div id="toast-container"></div>
+
   <!-- Кнопка вызова правил -->
-  <button class="help-btn" onclick="openRules()">?</button>
-
-  <!-- Главное меню (Лобби) -->
-  <div id="main-menu" class="menu-container">
-    
-    <div class="menu-actions">
-      <button class="btn primary-btn" onclick="createNewGame()">Создать новую игру</button>
-    </div>
-
-    <h2>Доступные комнаты</h2>
-    <div id="rooms-list" class="rooms-list">
-      <p>Загрузка списка комнат...</p>
-    </div>
-  </div>
+  <button class="help-btn" id="help-btn">?</button>
 
   <!-- Игровой экран -->
-  <div id="game-screen" style="display: none;">
-    <div class="game-header">
-      <button class="btn secondary-btn" onclick="leaveRoom()">← Выйти в меню</button>
-      <div id="room-info" class="room-title">Комната #</div>
-    </div>
-
-    <!-- Игровое поле с кубиками -->
-    <div class="dice-container" id="dice-container">
-      <div class="dice" id="dice-0" onclick="toggleDiceSelect(0)">1</div>
-      <div class="dice" id="dice-1" onclick="toggleDiceSelect(1)">1</div>
-      <div class="dice" id="dice-2" onclick="toggleDiceSelect(2)">1</div>
-      <div class="dice" id="dice-3" onclick="toggleDiceSelect(3)">1</div>
-      <div class="dice" id="dice-4" onclick="toggleDiceSelect(4)">1</div>
-    </div>
+  <div id="game-screen">
+    <div id="game-board" class="board"></div>
 
     <div class="controls">
-      <button class="btn primary-btn" id="roll-btn" onclick="rollDice()">Бросить кубики</button>
+      <button id="roll-btn" class="btn primary-btn">БРОСИТЬ КОСТИ</button>
     </div>
   </div>
 
   <!-- Окно правил -->
-  <div id="rules-modal" class="modal-overlay" onclick="closeRulesOnOverlay(event)">
+  <div id="rules-modal" class="modal-overlay">
     <div class="modal-content">
-      <button class="modal-close" onclick="closeRules()">&times;</button>
+      <button class="modal-close" id="modal-close-btn">&times;</button>
       <h2>Правила игры «1000»</h2>
       
       <div class="rules-info">
@@ -65,12 +43,17 @@
 
         <div class="rule-box">
           <h3>⚠️ Штрафы</h3>
-          <p>При 3 неудачных попытках взятия бочки подряд игрок слетает с неё с удержанием 120 очков (откат до 760).</p>
+          <p>При 3 неудачных попытках взятия бочки подряд игрок слетает с неё с удержанием 100 очков.</p>
         </div>
       </div>
     </div>
   </div>
 
-  <script type="module" src="app.js"></script>
+  <!-- Firebase Scripts (v8 namespace) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <!-- Основной скрипт логики -->
+  <script src="script.js"></script>
 </body>
 </html>
