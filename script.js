@@ -168,7 +168,6 @@ function showToast(message, type = 'info') {
 // 3. МАТЕМАТИКА И СЕТЕВАЯ СИНХРОНИЗАЦИЯ
 // ==========================================
 
-// Функция возвращает не только очки, но и группировку индексов комбинаций
 function calculateDiceScore(diceObjects) {
     if (!diceObjects || diceObjects.length === 0) {
         return { score: 0, scoringDiceCount: 0, scoringIndices: [], groups: [] };
@@ -262,16 +261,6 @@ function setupPresence(playerIndex) {
         if (snap.val() === true) {
             myPresenceRef.onDisconnect().remove();
             myPresenceRef.set(true);
-
-            database.ref(`rooms/${roomID}/activePlayers`).once('value', (snapshot) => {
-                const active = snapshot.val() || {};
-                const activeKeys = Object.keys(active);
-                if (activeKeys.length <= 1) {
-                    gameRef.onDisconnect().remove();
-                } else {
-                    gameRef.onDisconnect().cancel();
-                }
-            });
         }
     });
 }
@@ -279,13 +268,23 @@ function setupPresence(playerIndex) {
 database.ref(`rooms/${roomID}/activePlayers`).on('value', (snapshot) => {
     const activePlayers = snapshot.val();
     const activeKeys = activePlayers ? Object.keys(activePlayers).filter(k => activePlayers[k] === true) : [];
-    
+
     if (activeKeys.length === 0) {
         activePlayersMap = {};
         gameRef.remove();
+        return;
     } else {
         activePlayersMap = activePlayers;
     }
+
+    if (myPlayerIndex !== null) {
+        if (activeKeys.length === 1 && activeKeys.includes(String(myPlayerIndex))) {
+            gameRef.onDisconnect().remove();
+        } else {
+            gameRef.onDisconnect().cancel();
+        }
+    }
+
     updateUI();
 });
 
@@ -366,27 +365,22 @@ function toggleSelect(id) {
     if (gameState.mustConfirm) return;
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
 
-    // Проверяем, принадлежит ли кубик текущему броску
     let isDiceFromCurrentRoll = gameState.lastRollDiceObjects.some(d => d.index === id);
     if (!isDiceFromCurrentRoll && !gameState.isFirstRollInTurn) {
         showToast("Этот кубик отложен на предыдущем броске, его нельзя вернуть в игру!", "warning");
         return;
     }
 
-    // Считаем доступные комбинации в текущем броске
     const rollAnalysis = calculateDiceScore(gameState.lastRollDiceObjects);
 
-    // Ограничение: нельзя выбырать нерезультативный кубик
     if (!rollAnalysis.scoringIndices.includes(id)) {
         showToast("Нельзя выбрать этот кубик, он не принес очков!", "warning");
         return;
     }
 
-    // Находим группу, к которой принадлежит кликнутый кубик (например, тройка или стриты)
     let targetGroup = rollAnalysis.groups.find(group => group.includes(id));
     if (!targetGroup) return;
 
-    // Переключаем состояние всей группы одновременно
     let targetState = !gameState.selectedDiceIds[id];
     targetGroup.forEach(idx => {
         gameState.selectedDiceIds[idx] = targetState;
@@ -515,7 +509,6 @@ function rollAll() {
             return;
         }
 
-        // Автоматически выделяем все выпавшие результативные кубики (целиком)
         calculation.scoringIndices.forEach(idx => {
             gameState.selectedDiceIds[idx] = true;
         });
@@ -549,7 +542,6 @@ function bankScore() {
         return;
     }
 
-    // Запрет записи 0 очков
     if (!gameState.turnScore || gameState.turnScore === 0) {
         showToast("Нельзя записать 0 очков! Сначала выберите результативные кубики.", "warning");
         return;
