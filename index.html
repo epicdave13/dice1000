@@ -8,28 +8,44 @@
 </head>
 <body>
 
-  <!-- Кнопка справки (доступна всегда) -->
+  <!-- Кнопка вызова правил -->
   <button class="help-btn" onclick="openRules()">?</button>
 
-  <!-- Экран Главного Меню -->
+  <!-- Главное меню (Лобби) -->
   <div id="main-menu" class="menu-container">
     
     <div class="menu-actions">
-      <button class="btn primary-btn" onclick="createNewGame()">Создать игру</button>
+      <button class="btn primary-btn" onclick="createNewGame()">Создать новую игру</button>
     </div>
 
     <h2>Доступные комнаты</h2>
     <div id="rooms-list" class="rooms-list">
-      <p>Загрузка комнат...</p>
+      <p>Загрузка списка комнат...</p>
     </div>
   </div>
 
-  <!-- Игровой экран (скрыт по умолчанию) -->
+  <!-- Игровой экран -->
   <div id="game-screen" style="display: none;">
-    <!-- Вставьте сюда существующую разметку игрового поля -->
+    <div class="game-header">
+      <button class="btn secondary-btn" onclick="leaveRoom()">← Выйти в меню</button>
+      <div id="room-info" class="room-title">Комната #</div>
+    </div>
+
+    <!-- Игровое поле с кубиками -->
+    <div class="dice-container" id="dice-container">
+      <div class="dice" id="dice-0" onclick="toggleDiceSelect(0)">1</div>
+      <div class="dice" id="dice-1" onclick="toggleDiceSelect(1)">1</div>
+      <div class="dice" id="dice-2" onclick="toggleDiceSelect(2)">1</div>
+      <div class="dice" id="dice-3" onclick="toggleDiceSelect(3)">1</div>
+      <div class="dice" id="dice-4" onclick="toggleDiceSelect(4)">1</div>
+    </div>
+
+    <div class="controls">
+      <button class="btn primary-btn" id="roll-btn" onclick="rollDice()">Бросить кубики</button>
+    </div>
   </div>
 
-  <!-- Модальное окно правил -->
+  <!-- Окно правил -->
   <div id="rules-modal" class="modal-overlay" onclick="closeRulesOnOverlay(event)">
     <div class="modal-content">
       <button class="modal-close" onclick="closeRules()">&times;</button>
@@ -38,24 +54,23 @@
       <div class="rules-info">
         <div class="rule-box barrel">
           <h3>🛢️ Бочка</h3>
-          <p><b>Диапазон:</b> 880 – 1000 очков</p>
-          <p>При достижении 880 очков игрок «садится на бочку». Чтобы победить, нужно набрать 120 очков с ограничением по попыткам.</p>
+          <p><b>Диапазон:</b> 880 – 1000 очков.</p>
+          <p>Попадая на 880 очков, игрок «садится на бочку». Для победы необходимо набрать 120 очков за ограниченное количество попыток.</p>
         </div>
 
         <div class="rule-box">
-          <h3>🎯 Цель игры</h3>
-          <p>Побеждает тот, кто первым наберет <b>1000 очков</b>.</p>
+          <h3>🎯 Цель</h3>
+          <p>Первым набрать <b>1000 очков</b> или успешно пройти бочку.</p>
         </div>
 
         <div class="rule-box">
           <h3>⚠️ Штрафы</h3>
-          <p>При 3 неудачных попытках взятия бочки игрок слетает с нее со штрафом в 120 очков.</p>
+          <p>При 3 неудачных попытках взятия бочки подряд игрок слетает с неё с удержанием 120 очков (откат до 760).</p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Подключение скриптов -->
-  <script type="module" src="script.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
