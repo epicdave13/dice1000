@@ -28,23 +28,19 @@ const gameRef = database.ref(`rooms/${roomID}`);
 let isRolling = false;
 let activePlayersMap = {};
 
-// Генерируем или читаем постоянный ID игрока для надежного переподключения
+// Уникальный ID игрока сохраняется для восстановления сессии
 let myPlayerId = localStorage.getItem('dice_player_id');
 if (!myPlayerId) {
     myPlayerId = 'player_' + Math.random().toString(36).substr(2, 9);
     localStorage.setItem('dice_player_id', myPlayerId);
 }
 
-// Читаем или запрашиваем имя игрока
-let savedName = localStorage.getItem('dice_player_name');
-if (!savedName) {
-    savedName = prompt("Введите ваше имя:") || "";
-    if (!savedName.trim()) {
-        savedName = "Игрок " + Math.floor(Math.random() * 100);
-    }
-    savedName = savedName.trim();
-    localStorage.setItem('dice_player_name', savedName);
+// Запрос имени при каждом входе (или подстановка по умолчанию)
+let savedName = prompt("Введите ваше имя:") || "";
+if (!savedName.trim()) {
+    savedName = "Игрок " + Math.floor(Math.random() * 100);
 }
+savedName = savedName.trim();
 
 let myPlayerIndex = null;
 
@@ -144,7 +140,7 @@ if (!document.getElementById('bank-btn')) {
 }
 
 // ==========================================
-// 2. ВСПЛЫВАЮЩИЕ УВЕДОМЛЕНИЯ И КОПИРОВАНИЕ
+// 2. УВЕДОМЛЕНИЯ И КОПИРОВАНИЕ
 // ==========================================
 
 function copyRoomLink() {
@@ -172,7 +168,7 @@ function showToast(message, type = 'info') {
 }
 
 // ==========================================
-// 3. МАТЕМАТИКА И СЕТЕВАЯ СИНХРОНИЗАЦИЯ
+// 3. СИНХРОНИЗАЦИЯ ПРИСУТСТВИЯ И БД
 // ==========================================
 
 function calculateDiceScore(diceObjects) {
@@ -261,27 +257,31 @@ function calculateDiceScore(diceObjects) {
 }
 
 function setupPresence(playerIndex) {
+    if (playerIndex === null) return;
+    
     const myPresenceRef = database.ref(`rooms/${roomID}/activePlayers/${playerIndex}`);
     const connectedRef = database.ref('.info/connected');
 
+    connectedRef.off();
+
     connectedRef.on('value', (snap) => {
         if (snap.val() === true) {
-            myPresenceRef.onDisconnect().remove();
-            myPresenceRef.set(true);
+            myPresenceRef.onDisconnect().remove().then(() => {
+                myPresenceRef.set(true);
+            });
         }
     });
 }
 
 database.ref(`rooms/${roomID}/activePlayers`).on('value', (snapshot) => {
-    const activePlayers = snapshot.val();
-    const activeKeys = activePlayers ? Object.keys(activePlayers).filter(k => activePlayers[k] === true) : [];
+    const activePlayers = snapshot.val() || {};
+    const activeKeys = Object.keys(activePlayers).filter(k => activePlayers[k] === true);
+
+    activePlayersMap = activePlayers;
 
     if (activeKeys.length === 0) {
-        activePlayersMap = {};
         gameRef.remove();
         return;
-    } else {
-        activePlayersMap = activePlayers;
     }
 
     if (myPlayerIndex !== null) {
@@ -291,8 +291,7 @@ database.ref(`rooms/${roomID}/activePlayers`).on('value', (snapshot) => {
             gameRef.onDisconnect().cancel();
         }
 
-        // Если текущий ходящий игрок вышел оффлайн, передаем ход следующему живому игроку
-        if (!activePlayersMap[gameState.currentPlayer] && gameState.players.length > 0) {
+        if (!activePlayersMap[gameState.currentPlayer] && gameState.players && gameState.players.length > 0) {
             let nextPlayer = (gameState.currentPlayer + 1) % gameState.players.length;
             let attempts = 0;
 
@@ -398,7 +397,7 @@ gameRef.on('value', (snapshot) => {
 });
 
 // ==========================================
-// 4. СЕТЕВОЙ БРОСОК И ВЫБОР РЕЗУЛЬТАТИВНЫХ КОСТЕЙ
+// 4. БРОСОК И ВЫБОР КОСТЕЙ
 // ==========================================
 
 function toggleSelect(id) {
@@ -603,7 +602,7 @@ function bankScore() {
 }
 
 // ==========================================
-// 5. ПРАВИЛА (БОЧКИ, ОБГОНЫ, САМОСВАЛ) И UI
+// 5. ПРАВИЛА И ИНТЕРФЕЙС
 // ==========================================
 
 function checkOvertake() {
@@ -692,7 +691,6 @@ function endTurn(saveScore) {
         }
     }
 
-    // Пропуск игроков, находящихся оффлайн
     let nextPlayer = (gameState.currentPlayer + 1) % gameState.players.length;
     let attempts = 0;
 
@@ -803,7 +801,7 @@ function resetGame() {
 }
 
 // ==========================================
-// 6. УПРАВЛЕНИЕ СПРАВОЧНЫМ МОДАЛЬНЫМ ОКНОМ
+// 6. УПРАВЛЕНИЕ МОДАЛЬНЫМ ОКНОМ ПРАВИЛ
 // ==========================================
 
 function toggleHelpModal(show) {
