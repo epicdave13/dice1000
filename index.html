@@ -1,59 +1,46 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Игра 1000 — Кости</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>1000 на костях ONLINE</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Контейнер для уведомлений -->
+    <div id="toast-container"></div> 
 
-  <!-- Контейнер для всплывающих уведомлений -->
-  <div id="toast-container"></div>
+    <!-- Игровое поле, куда JS добавит кубики -->
+    <div class="board" id="game-board"></div>
 
-  <!-- Кнопка вызова правил -->
-  <button class="help-btn" id="help-btn">?</button>
-
-  <!-- Игровой экран -->
-  <div id="game-screen">
-    <div id="game-board" class="board"></div>
-
-    <div class="controls">
-      <button id="roll-btn" class="btn primary-btn">БРОСИТЬ КОСТИ</button>
+    <!-- Кнопки управления -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%;">
+        <button class="btn" id="roll-btn" onclick="rollAll()">БРОСИТЬ</button>
     </div>
-  </div>
 
-  <!-- Окно правил -->
-  <div id="rules-modal" class="modal-overlay">
-    <div class="modal-content">
-      <button class="modal-close" id="modal-close-btn">&times;</button>
-      <h2>Правила игры «1000»</h2>
-      
-      <div class="rules-info">
-        <div class="rule-box barrel">
-          <h3>🛢️ Бочка</h3>
-          <p><b>Диапазон:</b> 880 – 1000 очков.</p>
-          <p>Попадая на 880 очков, игрок «садится на бочку». Для победы необходимо набрать 120 очков за ограниченное количество попыток.</p>
-        </div>
+    <!-- ПОДКЛЮЧАЕМ СТАБИЛЬНЫЕ СКРИПТЫ FIREBASE COMPAT SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-        <div class="rule-box">
-          <h3>🎯 Цель</h3>
-          <p>Первым набрать <b>1000 очков</b> или успешно пройти бочку.</p>
-        </div>
+    <!-- ОТЛАДЧИК ОШИБОК: если JS упадет, мы увидим причину прямо на экране смартфона -->
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            const errDiv = document.createElement('div');
+            errDiv.style.position = 'fixed';
+            errDiv.style.bottom = '10px';
+            errDiv.style.left = '10px';
+            errDiv.style.background = 'red';
+            errDiv.style.color = 'white';
+            errDiv.style.padding = '10px';
+            errDiv.style.fontSize = '12px';
+            errDiv.style.zIndex = '9999';
+            errDiv.innerText = "Ошибка: " + message + " (Строка: " + lineno + ")";
+            document.body.appendChild(errDiv);
+            return false;
+        };
+    </script>
 
-        <div class="rule-box">
-          <h3>⚠️ Штрафы</h3>
-          <p>При 3 неудачных попытках взятия бочки подряд игрок слетает с неё с удержанием 100 очков.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Firebase Scripts (v8 namespace) -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
-  <!-- Основной скрипт логики -->
-  <script src="script.js"></script>
+    <!-- Подключаем вашу игровую логику -->
+    <script src="script.js"></script>
 </body>
 </html>
