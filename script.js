@@ -28,15 +28,22 @@ const gameRef = database.ref(`rooms/${roomID}`);
 let isRolling = false;
 let activePlayersMap = {};
 
-let savedName = sessionStorage.getItem(`dice_player_name_${roomID}`);
+// Генерируем или читаем постоянный ID игрока для надежного переподключения
+let myPlayerId = localStorage.getItem('dice_player_id');
+if (!myPlayerId) {
+    myPlayerId = 'player_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('dice_player_id', myPlayerId);
+}
+
+// Читаем или запрашиваем имя игрока
+let savedName = localStorage.getItem('dice_player_name');
 if (!savedName) {
     savedName = prompt("Введите ваше имя:") || "";
     if (!savedName.trim()) {
         savedName = "Игрок " + Math.floor(Math.random() * 100);
     }
-    sessionStorage.setItem(`dice_player_name_${roomID}`, savedName.trim());
-} else {
     savedName = savedName.trim();
+    localStorage.setItem('dice_player_name', savedName);
 }
 
 let myPlayerIndex = null;
@@ -283,6 +290,37 @@ database.ref(`rooms/${roomID}/activePlayers`).on('value', (snapshot) => {
         } else {
             gameRef.onDisconnect().cancel();
         }
+
+        // Если текущий ходящий игрок вышел оффлайн, передаем ход следующему живому игроку
+        if (!activePlayersMap[gameState.currentPlayer] && gameState.players.length > 0) {
+            let nextPlayer = (gameState.currentPlayer + 1) % gameState.players.length;
+            let attempts = 0;
+
+            while (!activePlayersMap[nextPlayer] && attempts < gameState.players.length) {
+                nextPlayer = (nextPlayer + 1) % gameState.players.length;
+                attempts++;
+            }
+
+            const activeIndices = Object.keys(activePlayersMap).map(Number).sort((a,b) => a - b);
+            if (activeIndices[0] === myPlayerIndex) {
+                gameRef.update({
+                    currentPlayer: nextPlayer,
+                    turnScore: 0,
+                    isFirstRollInTurn: true,
+                    mustConfirm: false,
+                    lastRollDiceObjects: [],
+                    lastCalculatedScore: 0,
+                    selectedDiceIds: [false, false, false, false, false],
+                    diceVisuals: [
+                        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+                        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+                        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+                        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+                        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 }
+                    ]
+                });
+            }
+        }
     }
 
     updateUI();
@@ -293,6 +331,7 @@ gameRef.on('value', (snapshot) => {
 
     if (!data) {
         gameState.players = [{
+            id: myPlayerId,
             name: savedName,
             totalScore: 0,
             bolts: 0,
@@ -310,12 +349,14 @@ gameRef.on('value', (snapshot) => {
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
 
     if (myPlayerIndex === null) {
-        let existingIndex = gameState.players.findIndex(p => p.name === savedName);
+        let existingIndex = gameState.players.findIndex(p => p.id === myPlayerId);
         if (existingIndex !== -1) {
             myPlayerIndex = existingIndex;
+            gameState.players[myPlayerIndex].name = savedName;
         } else {
             myPlayerIndex = gameState.players.length;
             gameState.players.push({
+                id: myPlayerId,
                 name: savedName,
                 totalScore: 0,
                 bolts: 0,
@@ -651,7 +692,16 @@ function endTurn(saveScore) {
         }
     }
 
-    gameState.currentPlayer = (gameState.currentPlayer + 1) % gameState.players.length;
+    // Пропуск игроков, находящихся оффлайн
+    let nextPlayer = (gameState.currentPlayer + 1) % gameState.players.length;
+    let attempts = 0;
+
+    while (!activePlayersMap[nextPlayer] && attempts < gameState.players.length) {
+        nextPlayer = (nextPlayer + 1) % gameState.players.length;
+        attempts++;
+    }
+
+    gameState.currentPlayer = nextPlayer;
     gameState.turnScore = 0;
     gameState.isFirstRollInTurn = true;
     gameState.mustConfirm = false;
