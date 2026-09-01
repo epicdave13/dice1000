@@ -820,3 +820,10 @@ function closeModalOnOverlay(event) {
         toggleHelpModal(false);
     }
 }
+
+window.addEventListener('beforeunload', () => {
+    if (myPlayerIndex !== null) {
+        // Принудительно удаляем статус присутствия прямо перед закрытием вкладки
+        database.ref(`rooms/${roomID}/activePlayers/${myPlayerIndex}`).remove();
+    }
+});
