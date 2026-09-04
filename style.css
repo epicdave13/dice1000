@@ -66,6 +66,164 @@ body {
     padding: 70px 20px 20px 20px;
 }
 
+/* Таблица очков */
+.score-table {
+    width: 90%;
+    max-width: 450px;
+    border-collapse: collapse;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    margin-bottom: 10px;
+}
+
+.score-table th, .score-table td {
+    padding: 10px 14px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.score-table th {
+    background: rgba(0, 0, 0, 0.5);
+    color: #f1c40f;
+    font-size: 14px;
+}
+
+.score-table td {
+    font-size: 15px;
+}
+
+.score-table tr.active-row {
+    background: rgba(46, 204, 113, 0.25);
+}
+
+/* Статусы и Болты */
+.status-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.status-badge.barrel {
+    background: #e67e22;
+    animation: pulse 1.5s infinite;
+}
+
+.bolt-indicator {
+    color: #f1c40f;
+    font-weight: bold;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Игровое поле и 3D Кубики */
+.board {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    min-height: 100px;
+    margin: 20px 0;
+}
+
+.scene {
+    width: 50px;
+    height: 50px;
+    perspective: 400px;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.3s;
+}
+
+.scene.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.scene.selected {
+    transform: translateY(-12px);
+}
+
+.scene.selected .cube .face {
+    border: 2px solid #f1c40f;
+    box-shadow: 0 0 10px #f1c40f;
+}
+
+.scene.locked {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.cube {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.face {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background: #ffffff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    display: grid;
+    grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+    padding: 5px;
+    box-sizing: border-box;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    background-color: #333;
+    border-radius: 50%;
+    align-self: center;
+    justify-self: center;
+}
+
+.front  { transform: rotateY(0deg) translateZ(25px); }
+.front .dot { grid-area: 2 / 2; background-color: #e74c3c; }
+
+.back   { transform: rotateY(180deg) translateZ(25px); }
+.back .dot:nth-child(1) { grid-area: 1 / 1; }
+.back .dot:nth-child(2) { grid-area: 1 / 3; }
+.back .dot:nth-child(3) { grid-area: 2 / 1; }
+.back .dot:nth-child(4) { grid-area: 2 / 3; }
+.back .dot:nth-child(5) { grid-area: 3 / 1; }
+.back .dot:nth-child(6) { grid-area: 3 / 3; }
+
+.right  { transform: rotateY(90deg) translateZ(25px); }
+.right .dot:nth-child(1) { grid-area: 1 / 1; }
+.right .dot:nth-child(2) { grid-area: 2 / 2; }
+.right .dot:nth-child(3) { grid-area: 3 / 3; }
+
+.left   { transform: rotateY(-90deg) translateZ(25px); }
+.left .dot:nth-child(1) { grid-area: 1 / 1; }
+.left .dot:nth-child(2) { grid-area: 1 / 3; }
+.left .dot:nth-child(3) { grid-area: 3 / 1; }
+.left .dot:nth-child(4) { grid-area: 3 / 3; }
+
+.top    { transform: rotateX(90deg) translateZ(25px); }
+.top .dot:nth-child(1) { grid-area: 1 / 1; }
+.top .dot:nth-child(2) { grid-area: 3 / 3; }
+
+.bottom { transform: rotateX(-90deg) translateZ(25px); }
+.bottom .dot:nth-child(1) { grid-area: 1 / 1; }
+.bottom .dot:nth-child(2) { grid-area: 1 / 3; }
+.bottom .dot:nth-child(3) { grid-area: 2 / 2; }
+.bottom .dot:nth-child(4) { grid-area: 3 / 1; }
+.bottom .dot:nth-child(5) { grid-area: 3 / 3; }
+
 /* Панель реакций */
 .reactions-bar {
     display: flex;
@@ -98,7 +256,7 @@ body {
     transform: scale(0.95);
 }
 
-/* Оверлей всплывающих реакций (поверх элементов) */
+/* Оверлей всплывающих реакций */
 .reaction-overlay {
     position: fixed;
     top: 0;
@@ -110,7 +268,6 @@ body {
     overflow: hidden;
 }
 
-/* Анимация всплывающей реакции */
 .floating-reaction {
     position: absolute;
     bottom: 25%;
@@ -195,6 +352,31 @@ body {
 .btn-success:hover {
     background: #27ae60;
 }
+
+/* Уведомления Toast */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+}
+
+.toast.info { background: #3498db; }
+.toast.success { background: #2ecc71; }
+.toast.warning { background: #f39c12; }
+.toast.danger { background: #e74c3c; }
 
 /* Модальное окно */
 .modal-overlay {
