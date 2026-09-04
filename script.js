@@ -329,14 +329,25 @@ gameRef.on('value', (snapshot) => {
     const data = snapshot.val();
 
     if (!data) {
-        gameState.players = [{
-            id: myPlayerId,
-            name: savedName,
-            totalScore: 0,
-            bolts: 0,
-            barrelAttempts: 0,
-            hasEnteredGame: false
-        }];
+        gameState = {
+            gameStarted: false,
+            currentPlayer: 0,
+            players: [{
+                id: myPlayerId,
+                name: savedName,
+                totalScore: 0,
+                bolts: 0,
+                barrelAttempts: 0,
+                hasEnteredGame: false
+            }],
+            turnScore: 0,
+            isFirstRollInTurn: true,
+            mustConfirm: false,
+            lastRollDiceObjects: [],
+            lastCalculatedScore: 0,
+            diceVisuals: Array(5).fill({ hidden: true, locked: false, rx: 0, ry: 0, value: 1 }),
+            selectedDiceIds: Array(5).fill(false)
+        };
         myPlayerIndex = 0;
         gameRef.set(gameState);
         setupPresence(myPlayerIndex);
@@ -370,7 +381,9 @@ gameRef.on('value', (snapshot) => {
     for (let i = 0; i < 5; i++) {
         const scene = document.getElementById(`scene-${i}`);
         const cube = document.getElementById(`cube-${i}`);
-        const dv = gameState.diceVisuals[i];
+        const dv = gameState.diceVisuals ? gameState.diceVisuals[i] : { hidden: true, rx: 0, ry: 0, value: 1 };
+
+        if (!scene || !cube || !dv) continue;
 
         if (dv.hidden) {
             scene.classList.add('hidden');
@@ -378,7 +391,7 @@ gameRef.on('value', (snapshot) => {
             scene.classList.remove('hidden');
         }
 
-        if (gameState.selectedDiceIds[i]) {
+        if (gameState.selectedDiceIds && gameState.selectedDiceIds[i]) {
             scene.classList.add('selected');
         } else {
             scene.classList.remove('selected');
@@ -390,7 +403,7 @@ gameRef.on('value', (snapshot) => {
             scene.classList.remove('locked');
         }
 
-        cube.style.transform = `rotateX(${dv.rx}deg) rotateY(${dv.ry}deg) ${faceTransforms[dv.value]}`;
+        cube.style.transform = `rotateX(${dv.rx || 0}deg) rotateY(${dv.ry || 0}deg) ${faceTransforms[dv.value || 1]}`;
     }
 
     updateUI();
@@ -674,8 +687,10 @@ function endTurn(saveScore) {
         checkOvertake();
 
         if (player.totalScore >= 1000) {
-            showToast(`Поздравляем! Игрок ${player.name} победил, набрав ${player.totalScore} очков!`, "success");
-            resetGame();
+            showToast(`🎉 Поздравляем! Игрок ${player.name} победил, набрав ${player.totalScore} очков!`, "success");
+            setTimeout(() => {
+                resetGame();
+            }, 2500);
             return;
         }
     } else {
@@ -797,7 +812,33 @@ function updateUI() {
 }
 
 function resetGame() {
-    gameRef.remove();
+    gameState.gameStarted = false;
+
+    if (gameState.players && Array.isArray(gameState.players)) {
+        gameState.players.forEach(p => {
+            p.totalScore = 0;
+            p.bolts = 0;
+            p.barrelAttempts = 0;
+            p.hasEnteredGame = false;
+        });
+    }
+
+    gameState.currentPlayer = 0;
+    gameState.turnScore = 0;
+    gameState.isFirstRollInTurn = true;
+    gameState.mustConfirm = false;
+    gameState.lastRollDiceObjects = [];
+    gameState.lastCalculatedScore = 0;
+    gameState.selectedDiceIds = [false, false, false, false, false];
+    gameState.diceVisuals = [
+        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 }
+    ];
+
+    gameRef.set(gameState);
 }
 
 // ==========================================
@@ -823,7 +864,6 @@ function closeModalOnOverlay(event) {
 
 window.addEventListener('beforeunload', () => {
     if (myPlayerIndex !== null) {
-        // Принудительно удаляем статус присутствия прямо перед закрытием вкладки
         database.ref(`rooms/${roomID}/activePlayers/${myPlayerIndex}`).remove();
     }
 });
