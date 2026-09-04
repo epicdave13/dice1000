@@ -1,541 +1,104 @@
-body {
+/* Основные стили страницы */
+* {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #1a472a;
-    font-family: Arial, sans-serif;
+    color: #ffffff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+}
+
+/* Заголовок страницы и кнопка правил */
+.game-header {
+    position: absolute;
+    top: 15px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    z-index: 10;
+}
+
+.game-header h1 {
+    font-size: 22px;
+    color: #f1c40f;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.btn-help {
+    background: #27ae60;
     color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    transition: background 0.2s, transform 0.1s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.btn-help:hover {
+    background: #2ecc71;
+    transform: translateY(-2px);
+}
+
+/* Игровой контейнер */
+.game-container {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    overflow: hidden;
-}
-
-h1 {
-    margin-bottom: 30px;
-    font-size: 24px;
-}
-
-.board {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-bottom: 40px;
-    flex-wrap: wrap;
-}
-
-.scene {
-    width: 60px;
-    height: 60px;
-    perspective: 300px;
-}
-
-.cube {
-    width: 60px;
-    /* Жестко фиксируем размер */
-    height: 60px;
-    position: relative;
-    transform-style: preserve-3d;
-    transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-/* Стили граней кубика */
-.face {
-    position: absolute;
-    width: 60px;
-    height: 60px;
-    background: #ffffff;
-    border: 2px solid #333;
-    border-radius: 10px;
-    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.1), 0 4px 8px rgba(0, 0, 0, 0.3);
-    display: grid;
-    grid-template-areas:
-        "a . b"
-        "c d e"
-        "f . g";
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    padding: 5px;
-    box-sizing: border-box;
-    backface-visibility: hidden;
-    /* Магия CSS: прячет вылезающие задние грани */
-}
-
-.scene.selected .face {
-    border-color: #f1c40f;
-    /* Золотая рамка */
-    box-shadow: 0 0 15px #f1c40f;
-    /* Золотое свечение */
-    background: #fffdf0;
-    /* Слегка меняем фон */
-}
-
-/* Стили точек */
-.dot {
-    display: block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background-color: #333;
-    justify-self: center;
-    align-self: center;
-}
-
-/* Красная точка для единицы */
-.front .dot {
-    background-color: #e74c3c;
-    width: 12px;
-    height: 12px;
-}
-
-/* Расположение точек по сетке */
-.face div:nth-child(1) {
-    grid-area: d;
-}
-
-.two div:nth-child(1) {
-    grid-area: a;
-}
-
-.two div:nth-child(2) {
-    grid-area: g;
-}
-
-.three div:nth-child(1) {
-    grid-area: a;
-}
-
-.three div:nth-child(2) {
-    grid-area: d;
-}
-
-.three div:nth-child(3) {
-    grid-area: g;
-}
-
-.four div:nth-child(1) {
-    grid-area: a;
-}
-
-.four div:nth-child(2) {
-    grid-area: b;
-}
-
-.four div:nth-child(3) {
-    grid-area: f;
-}
-
-.four div:nth-child(4) {
-    grid-area: g;
-}
-
-.five div:nth-child(1) {
-    grid-area: a;
-}
-
-.five div:nth-child(2) {
-    grid-area: b;
-}
-
-.five div:nth-child(3) {
-    grid-area: d;
-}
-
-.five div:nth-child(4) {
-    grid-area: f;
-}
-
-.five div:nth-child(5) {
-    grid-area: g;
-}
-
-.six div:nth-child(1) {
-    grid-area: a;
-}
-
-.six div:nth-child(2) {
-    grid-area: b;
-}
-
-.six div:nth-child(3) {
-    grid-area: c;
-}
-
-.six div:nth-child(4) {
-    grid-area: e;
-}
-
-.six div:nth-child(5) {
-    grid-area: f;
-}
-
-.six div:nth-child(6) {
-    grid-area: g;
-}
-
-/* Позиции граней в 3D */
-.front {
-    transform: rotateY(0deg) translateZ(30px);
-}
-
-.back {
-    transform: rotateY(180deg) translateZ(30px);
-}
-
-.right {
-    transform: rotateY(90deg) translateZ(30px);
-}
-
-.left {
-    transform: rotateY(-90deg) translateZ(30px);
-}
-
-.top {
-    transform: rotateX(90deg) translateZ(30px);
-}
-
-.bottom {
-    transform: rotateX(-90deg) translateZ(30px);
-}
-
-/* Кнопка */
-.btn {
-    background-color: #e67e22;
-    color: white;
-    border: none;
-    padding: 15px 40px;
-    font-size: 18px;
-    font-weight: bold;
-    border-radius: 25px;
-    cursor: pointer;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    width: 80%;
-    max-width: 250px;
-    touch-action: manipulation;
-}
-
-.btn:active {
-    transform: scale(0.98);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-}
-
-/* Контейнер для уведомлений (всегда поверх игры) */
-#toast-container {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 90%;
-    max-width: 350px;
-    pointer-events: none;
-    /* Чтобы не мешали тапать под ними */
-}
-
-/* Стиль самой плашки уведомления */
-.toast {
-    background: rgba(0, 0, 0, 0.85);
-    color: #fff;
-    padding: 12px 20px;
-    border-radius: 12px;
-    font-size: 15px;
-    text-align: center;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-    border-left: 5px solid #e67e22;
-    /* Оранжевая полоса по умолчанию */
-    backdrop-filter: blur(5px);
-
-    /* Анимация появления и исчезновения */
-    animation: slideIn 0.3s ease-out forwards;
-    transition: opacity 0.5s ease, transform 0.5s ease;
-}
-
-/* Разные цвета полосок для разных типов событий */
-.toast.success {
-    border-left-color: #2ecc71;
-}
-
-/* Зеленый (запись очков) */
-.toast.danger {
-    border-left-color: #e74c3c;
-}
-
-/* Красный (крах / болт) */
-.toast.warning {
-    border-left-color: #f1c40f;
-}
-
-/* Желтый (бочки / подтверждение) */
-
-@keyframes slideIn {
-    0% {
-        transform: translateY(-20px);
-        opacity: 0;
-    }
-
-    100% {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-/* Класс для плавного скрытия кубиков между ходами */
-.scene.hidden {
-    opacity: 0;
-    transform: scale(0.5);
-    /* Эффект уменьшения при исчезновении */
-    pointer-events: none;
-    /* Запрещаем клики и тапы по скрытым кубикам */
-    transition: opacity 0.4s ease, transform 0.4s ease;
-}
-
-/* Возвращаем стандартные свойства, когда класса hidden нет */
-.scene {
-    transition: opacity 0.4s ease, transform 0.4s ease;
-}
-
-/* Мягкая зеленая подсветка для результативных кубиков (подсказка) */
-/* Стиль для "мертво" заблокированных кубиков прошлых бросков */
-.scene.locked .face {
-    border-color: #7f8c8d !important;
-    background: #e1e4e6 !important;
-    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.15) !important;
-}
-
-/* Контейнер для таблицы счета */
-.score-table {
-    width: 90%;
-    max-width: 400px;
-    border-collapse: collapse;
-    margin: 20px 0;
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-    font-size: 16px;
-    backdrop-filter: blur(5px);
-}
-
-.score-table th,
-.score-table td {
-    padding: 12px 15px;
-    text-align: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.score-table th {
-    background-color: rgba(0, 0, 0, 0.6);
-    color: #f1c40f;
-    /* Золотой цвет для заголовков */
-    font-weight: bold;
-    text-transform: uppercase;
-    font-size: 13px;
-    letter-spacing: 1px;
-}
-
-/* Подсветка строки игрока, который сейчас ходит */
-.score-table tr.active-row {
-    background-color: rgba(241, 196, 15, 0.15);
-    box-shadow: inset 4px 0 0 #f1c40f;
-}
-
-.score-table tr.active-row td {
-    color: #f1c40f;
-    font-weight: bold;
-}
-
-/* Стилизация болтов (точки вместо цифр) */
-.bolt-indicator {
-    color: #e74c3c;
-    font-weight: bold;
-    letter-spacing: 2px;
-}
-
-/* Статус бочки */
-.status-badge {
-    font-size: 12px;
-    padding: 3px 8px;
-    border-radius: 10px;
-    background: #7f8c8d;
-    color: white;
-}
-
-.status-badge.barrel {
-    background: #e67e22;
-    animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-    0% {
-        opacity: 0.7;
-    }
-
-    50% {
-        opacity: 1;
-    }
-
-    100% {
-        opacity: 0.7;
-    }
-}
-/* ==========================================
-   КНОПКА И МОДАЛЬНОЕ ОКНО ПРАВИЛ
-   ========================================== */
-
-/* Квадратная кнопка со скругленными углами в правом верхнем углу */
-.help-btn {
-  position: fixed;
-  top: 15px;
-  right: 15px;
-  width: 36px;
-  height: 36px;
-  background: #2c3e50;
-  border: 1px solid #7f8c8d;
-  border-radius: 8px;
-  color: #bdc3c7;
-  font-size: 18px;
-  font-weight: bold;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-}
-
-.help-btn:hover {
-  background: #34495e;
-  color: #ecf0f1;
-  border-color: #95a5a6;
-  transform: scale(1.05);
-}
-
-/* Фон модального окна */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-}
-
-.modal-overlay.active {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* Карточка модального окна */
-.modal-content {
-  background: #1e272c;
-  color: #ecf0f1;
-  padding: 24px;
-  border-radius: 12px;
-  max-width: 360px;
-  width: 85%;
-  box-shadow: 0 5px 20px rgba(0,0,0,0.5);
-  border: 1px solid #34495e;
-  position: relative;
-  transform: translateY(-20px);
-  transition: transform 0.3s ease;
-}
-
-.modal-overlay.active .modal-content {
-  transform: translateY(0);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-  border-bottom: 1px solid #34495e;
-  padding-bottom: 10px;
-}
-
-.modal-title {
-  font-size: 18px;
-  font-weight: bold;
-  color: #f1c40f;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  color: #7f8c8d;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
-}
-
-.close-btn:hover {
-  color: #e74c3c;
-}
-
-.barrel-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.barrel-item {
-  background: rgba(255,255,255,0.05);
-  margin-bottom: 10px;
-  padding: 10px 12px;
-  border-radius: 6px;
-  border-left: 4px solid #e67e22;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-.barrel-item strong {
-  color: #e67e22;
+    width: 100%;
+    max-width: 600px;
+    padding: 70px 20px 20px 20px;
 }
 
 /* Панель реакций */
 .reactions-bar {
     display: flex;
     justify-content: center;
-    gap: 10px;
-    margin: 10px 0;
-    background: rgba(0, 0, 0, 0.3);
-    padding: 8px 16px;
-    border-radius: 25px;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 8px 20px;
+    border-radius: 30px;
     backdrop-filter: blur(5px);
+    z-index: 5;
 }
 
 .reactions-bar button {
-    background: transparent;
+    background: none;
     border: none;
-    font-size: 24px;
+    font-size: 26px;
     cursor: pointer;
-    transition: transform 0.15s ease, filter 0.15s ease;
-    padding: 2px 6px;
+    line-height: 1;
+    padding: 4px;
+    transition: transform 0.15s ease;
 }
 
 .reactions-bar button:hover {
     transform: scale(1.3);
-    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
 }
 
 .reactions-bar button:active {
-    transform: scale(1.0);
+    transform: scale(0.95);
 }
 
-/* Оверлей анимации реакций */
+/* Оверлей всплывающих реакций (поверх элементов) */
 .reaction-overlay {
     position: fixed;
     top: 0;
@@ -543,24 +106,27 @@ h1 {
     width: 100vw;
     height: 100vh;
     pointer-events: none;
-    z-index: 9999;
+    z-index: 99999;
     overflow: hidden;
 }
 
-/* Всплывающий элемент реакции */
+/* Анимация всплывающей реакции */
 .floating-reaction {
     position: absolute;
-    bottom: 20%;
-    font-size: 42px;
+    bottom: 25%;
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(0, 0, 0, 0.85);
     color: #fff;
-    padding: 6px 16px;
+    padding: 8px 18px;
     border-radius: 20px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-    animation: floatUpFade 2.5s cubic-bezier(0.25, 1, 0.5, 1) FORWARD;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+    animation: floatUpFade 2.2s ease-out forwards;
+}
+
+.floating-reaction .emoji {
+    font-size: 32px;
 }
 
 .reaction-author {
@@ -572,21 +138,117 @@ h1 {
 @keyframes floatUpFade {
     0% {
         opacity: 0;
-        transform: translateY(40px) scale(0.6);
+        transform: translateY(30px) scale(0.5);
     }
     15% {
         opacity: 1;
         transform: translateY(0) scale(1.1);
     }
     30% {
-        transform: translateY(-10px) scale(1);
+        transform: translateY(-5px) scale(1);
     }
-    80% {
+    75% {
         opacity: 1;
-        transform: translateY(-80px) scale(1);
+        transform: translateY(-60px) scale(1);
     }
     100% {
         opacity: 0;
-        transform: translateY(-120px) scale(0.8);
+        transform: translateY(-100px) scale(0.8);
     }
+}
+
+/* Кнопки управления */
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 300px;
+    margin-top: 10px;
+}
+
+.btn {
+    padding: 14px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.btn-primary {
+    background: #e67e22;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #d35400;
+}
+
+.btn-success {
+    background: #2ecc71;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #27ae60;
+}
+
+/* Модальное окно */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    backdrop-filter: blur(3px);
+}
+
+.modal-content {
+    background: #2c3e50;
+    border-radius: 16px;
+    padding: 25px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+
+.modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    color: #bdc3c7;
+    font-size: 28px;
+    cursor: pointer;
+}
+
+.modal-close:hover {
+    color: #fff;
+}
+
+.modal-body h3 {
+    margin-top: 15px;
+    margin-bottom: 5px;
+    color: #f1c40f;
+}
+
+.modal-body ul {
+    margin-left: 20px;
+    margin-bottom: 10px;
+}
+
+.modal-body li {
+    margin-bottom: 4px;
 }
