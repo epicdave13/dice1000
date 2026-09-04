@@ -2,85 +2,72 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Игра в 1000 (Кости)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>1000 на костях ONLINE</title>
     <link rel="stylesheet" href="style.css">
-    
-    <!-- Firebase SDK (v8) -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
+    <!-- Контейнер для уведомлений -->
+    <div id="toast-container"></div> 
 
-    <div id="toast-container"></div>
-    <div id="reaction-overlay" class="reaction-overlay"></div>
+    <!-- Игровое поле, куда JS добавит кубики -->
+    <div class="board" id="game-board"></div>
 
-    <header class="game-header">
-        <h1>🎲 1000</h1>
-        <button class="btn-help" onclick="toggleHelpModal(true)">❓ Правила</button>
-    </header>
-
-    <main class="game-container">
-        
-        <!-- Игровое поле с костями -->
-        <div id="game-board" class="board"></div>
-
-        <!-- Панель реакций -->
-        <div id="reactions-bar" class="reactions-bar">
-            <button onclick="sendReaction('😂')" title="Радость">😂</button>
-            <button onclick="sendReaction('😡')" title="Злость">😡</button>
-            <button onclick="sendReaction('😒')" title="Зависть">😒</button>
-            <button onclick="sendReaction('🔥')" title="Огонь">🔥</button>
-            <button onclick="sendReaction('🎲')" title="Удача">🎲</button>
-        </div>
-
-        <!-- Кнопки управления -->
-        <div class="controls">
-            <button id="roll-btn" class="btn btn-primary" onclick="rollAll()">БРОСИТЬ КОСТИ</button>
-        </div>
-
-    </main>
-
-    <!-- Модальное окно правил -->
-    <div id="help-modal" class="modal-overlay" onclick="closeModalOnOverlay(event)">
-        <div class="modal-content">
-            <button class="modal-close" onclick="toggleHelpModal(false)">&times;</button>
-            <h2>Правила игры «1000»</h2>
-            
-            <div class="modal-body">
-                <h3>🎯 Цель игры</h3>
-                <p>Первым набрать <b>1000 или более очков</b>.</p>
-
-                <h3>🎲 Комбинации и очки</h3>
-                <ul>
-                    <li><b>Единица (1)</b> — 10 очков.</li>
-                    <li><b>Пятерка (5)</b> — 5 очков.</li>
-                    <li><b>3 единицы</b> — 100 очков.</li>
-                    <li><b>3 двойки / тройки / и т.д.</b> — Номинал × 10 (например, 3 четвёрки = 40 очков).</li>
-                    <li><b>4 одинаковых</b> — Удваивают значение за 3 кубика.</li>
-                    <li><b>5 одинаковых</b> — Умножают номинал на 100 (5 троек = 300, 5 единиц = 1000).</li>
-                    <li><b>Малый стрит (1-2-3-4-5)</b> — 125 очков.</li>
-                    <li><b>Большой стрит (2-3-4-5-6)</b> — 250 очков.</li>
-                </ul>
-
-                <h3>⚡ Болты и штрафы</h3>
-                <ul>
-                    <li>Если при броске с костей не выпало ни одной очковой комбинации (0 очков), вам засчитывается <b>Болт (⚡)</b>.</li>
-                    <li>За получение <b>3 болтов</b> с игрока списывается <b>100 очков</b>.</li>
-                </ul>
-
-                <h3>🚗 Самосвал и Обгон</h3>
-                <ul>
-                    <li><b>Самосвал (555):</b> Если счет игрока становится ровно 555 очков, его счет полностью обнуляется!</li>
-                    <li><b>Обгон:</b> Если вы обгоняете соперника по очкам, у него сбрасывается 50 очков.</li>
-                </ul>
-
-                <h3>🛢 Бочки</h3>
-                <p>На отметках <b>200-300</b>, <b>600-700</b> и <b>880-1000</b> находятся бочки. Находясь на бочке, нельзя записывать мелкие очки — нужно преодолеть её за один ход!</p>
-            </div>
-        </div>
+    <!-- Кнопки управления -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%;">
+        <button class="btn" id="roll-btn" onclick="rollAll()">БРОСИТЬ</button>
     </div>
 
+    <!-- ПОДКЛЮЧАЕМ СТАБИЛЬНЫЕ СКРИПТЫ FIREBASE COMPAT SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <!-- ОТЛАДЧИК ОШИБОК: если JS упадет, мы увидим причину прямо на экране смартфона -->
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            const errDiv = document.createElement('div');
+            errDiv.style.position = 'fixed';
+            errDiv.style.bottom = '10px';
+            errDiv.style.left = '10px';
+            errDiv.style.background = 'red';
+            errDiv.style.color = 'white';
+            errDiv.style.padding = '10px';
+            errDiv.style.fontSize = '12px';
+            errDiv.style.zIndex = '9999';
+            errDiv.innerText = "Ошибка: " + message + " (Строка: " + lineno + ")";
+            document.body.appendChild(errDiv);
+            return false;
+        };
+    </script>
+
+    <!-- Подключаем вашу игровую логику -->
+    <!-- Кнопка вызова правил (сверху справа) -->
+<button class="help-btn" onclick="toggleHelpModal(true)" title="Правила бочек">?</button>
+
+<!-- Модальное окно правил -->
+<div class="modal-overlay" id="help-modal" onclick="closeModalOnOverlay(event)">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">Правила бочек 🛢️</div>
+      <button class="close-btn" onclick="toggleHelpModal(false)">&times;</button>
+    </div>
+    <ul class="barrel-list">
+      <li class="barrel-item">
+        <strong>Первая бочка:</strong><br>
+        Интервал <b>200 ➔ 300</b> очков.
+      </li>
+      <li class="barrel-item">
+        <strong>Вторая бочка:</strong><br>
+        Интервал <b>600 ➔ 700</b> очков.
+      </li>
+      <li class="barrel-item" style="border-left-color: #e74c3c;">
+        <strong style="color: #e74c3c;">Финальная бочка:</strong><br>
+        Интервал <b>880 ➔ 1000</b> очков.<br>
+        Дается ровно <b>3 попытки</b>, чтобы набрать 1000+ очков. При неудаче — штраф -100 очков.
+      </li>
+    </ul>
+  </div>
+</div>
     <script src="script.js"></script>
 </body>
 </html>
