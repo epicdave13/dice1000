@@ -30,14 +30,12 @@ const gameRef = database.ref(`rooms/${roomID}`);
 let isRolling = false;
 let activePlayersMap = {};
 
-// Уникальный ID игрока сохраняется для восстановления сессии
 let myPlayerId = localStorage.getItem('dice_player_id');
 if (!myPlayerId) {
     myPlayerId = 'player_' + Math.random().toString(36).substr(2, 9);
     localStorage.setItem('dice_player_id', myPlayerId);
 }
 
-// Запрос имени при каждом входе
 let savedName = prompt("Введите ваше имя:") || "";
 if (!savedName.trim()) {
     savedName = "Игрок " + Math.floor(Math.random() * 100);
@@ -179,7 +177,6 @@ database.ref(`rooms/${roomID}/messages`).on('value', (snapshot) => {
     }
 });
 
-// Отправка реакций через push()
 function sendReaction(emoji) {
     if (!savedName) return;
     database.ref(`rooms/${roomID}/reactions`).push({
@@ -189,7 +186,6 @@ function sendReaction(emoji) {
     });
 }
 
-// Слушатель событий 'child_added' для корректного показа анимации
 const lastLoadTime = Date.now();
 database.ref(`rooms/${roomID}/reactions`)
     .limitToLast(1)
@@ -541,7 +537,7 @@ function rollAll() {
 
     let selectedCountFromLastRoll = 0;
     gameState.lastRollDiceObjects.forEach(d => {
-        if (d && gameState.selectedDiceIds[d.index]) {
+        if (d && gameState.selectedDiceIds && gameState.selectedDiceIds[d.index]) {
             selectedCountFromLastRoll++;
         }
     });
@@ -568,6 +564,7 @@ function rollAll() {
     } else if (gameState.mustConfirm) {
         for (let i = 0; i < 5; i++) {
             gameState.selectedDiceIds[i] = false;
+            gameState.diceVisuals[i].hidden = false;
             gameState.diceVisuals[i].locked = false;
             activeIndices.push(i);
         }
@@ -577,6 +574,7 @@ function rollAll() {
             if (gameState.selectedDiceIds[i]) {
                 gameState.diceVisuals[i].locked = true;
             } else {
+                gameState.diceVisuals[i].hidden = false;
                 activeIndices.push(i);
             }
         }
