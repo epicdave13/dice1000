@@ -35,7 +35,7 @@ if (!myPlayerId) {
     localStorage.setItem('dice_player_id', myPlayerId);
 }
 
-// Запрос имени при каждом входе (или подстановка по умолчанию)
+// Запрос имени при каждом входе
 let savedName = prompt("Введите ваше имя:") || "";
 if (!savedName.trim()) {
     savedName = "Игрок " + Math.floor(Math.random() * 100);
@@ -144,17 +144,10 @@ if (rollBtnElem && !document.getElementById('bank-btn')) {
 }
 
 // ==========================================
-// 2. УВЕДОМЛЕНИЯ И КОПИРОВАНИЕ
+// 2. УВЕДОМЛЕНИЯ (ЛОКАЛЬНЫЕ И ГЛОБАЛЬНЫЕ)
 // ==========================================
 
-function copyRoomLink() {
-    navigator.clipboard.writeText(window.location.href).then(() => {
-        showToast("Ссылка на комнату скопирована!", "success");
-    }).catch(err => {
-        showToast("Не удалось скопировать ссылку", "danger");
-    });
-}
-
+// Локальный показ всплывающего окна
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -168,7 +161,32 @@ function showToast(message, type = 'info') {
         toast.style.opacity = '0';
         toast.style.transform = 'translateY(-10px)';
         setTimeout(() => toast.remove(), 500);
-    }, 3000);
+    }, 3500);
+}
+
+// Отправка уведомления ВСЕМ игрокам в комнате
+function broadcastToast(message, type = 'info') {
+    database.ref(`rooms/${roomID}/messages`).set({
+        text: message,
+        type: type,
+        timestamp: Date.now()
+    });
+}
+
+// Подписка на сообщения комнаты
+database.ref(`rooms/${roomID}/messages`).on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (data && data.text) {
+        showToast(data.text, data.type || 'info');
+    }
+});
+
+function copyRoomLink() {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+        showToast("Ссылка на комнату скопирована!", "success");
+    }).catch(err => {
+        showToast("Не удалось скопировать ссылку", "danger");
+    });
 }
 
 // ==========================================
@@ -553,19 +571,19 @@ function rollAll() {
         const activePlayer = gameState.players[myPlayerIndex];
 
         if (calculation.score === 0) {
-            let message = `Выпало 0 очков! Ход переходит к следующему игроку.`;
+            let message = `Игрок ${activePlayer ? activePlayer.name : ''} выбросил 0 очков! Ход переходит к следующему.`;
 
             if (activePlayer && gameState.isFirstRollInTurn && (activePlayer.totalScore || 0) >= 50 && !isPlayerOnBarrel(activePlayer.totalScore || 0)) {
                 activePlayer.bolts = (activePlayer.bolts || 0) + 1;
-                message = `Ноль очков! Вы получаете БОЛТ.`;
+                message = `Ноль очков! ${activePlayer.name} получает БОЛТ.`;
                 if (activePlayer.bolts >= 3) {
                     activePlayer.bolts = 0;
                     activePlayer.totalScore = (activePlayer.totalScore || 0) - 100;
-                    message += ` Три болта превращаются в минус 100 очков!`;
+                    message += ` 3 болта превращаются в штраф -100 очков!`;
                 }
             }
 
-            showToast(message, "danger");
+            broadcastToast(message, "danger");
             endTurn(false);
             return;
         }
@@ -580,7 +598,7 @@ function rollAll() {
 
         if (calculation.scoringDiceCount === activeIndices.length) {
             gameState.mustConfirm = true;
-            showToast(`Все кубики сыграли! Вы набрали ${gameState.turnScore}. Вы ОБЯЗАНЫ подтвердить сумму броском всех 5 кубиков.`, "warning");
+            broadcastToast(`Все кубики у ${activePlayer ? activePlayer.name : 'игрока'} сыграли! Подтверждение броском всех 5 костей.`, "warning");
         }
 
         gameRef.update({
@@ -637,7 +655,7 @@ function checkOvertake() {
         if (oppPlayer && oppIdx !== currentIdx && (oppPlayer.totalScore || 0) > 0) {
             if (oldScore <= oppPlayer.totalScore && currentPlayer.totalScore > oppPlayer.totalScore) {
                 oppPlayer.totalScore = Math.max(0, oppPlayer.totalScore - 50);
-                showToast(`Обгон! ${currentPlayer.name} обошел ${oppPlayer.name}. У соперника списано 50 очков!`, "success");
+                broadcastToast(`Обгон! ${currentPlayer.name} обошел ${oppPlayer.name}. У соперника списано 50 очков!`, "success");
             }
         }
     });
@@ -674,14 +692,14 @@ function endTurn(saveScore) {
         }
 
         if ((player.totalScore || 0) < 200 && proposedScore >= 200 && proposedScore < 300) {
-            showToast(`Вы попали на БОЧКУ (Счет: ${proposedScore})! В следующий ход придется добирать до 300.`, "warning");
+            broadcastToast(`Игрок ${player.name} залез на БОЧКУ! (Счет: ${proposedScore})`, "warning");
         }
         else if ((player.totalScore || 0) < 600 && proposedScore >= 600 && proposedScore < 700) {
-            showToast(`Вы попали на БОЧКУ (Счет: ${proposedScore})! В следующий ход придется добирать до 700.`, "warning");
+            broadcastToast(`Игрок ${player.name} залез на БОЧКУ! (Счет: ${proposedScore})`, "warning");
         }
         else if ((player.totalScore || 0) < 880 && proposedScore >= 880 && proposedScore < 1000) {
             player.barrelAttempts = 0;
-            showToast(`ВХОД НА ФИНАЛЬНУЮ БОЧКУ! (Счет: ${proposedScore}). У вас есть ровно 3 хода, чтобы закончить игру!`, "warning");
+            broadcastToast(`🚀 ВХОД НА ФИНАЛЬНУЮ БОЧКУ! ${player.name} набирает ${proposedScore} очков!`, "warning");
         }
 
         if (proposedScore >= 1000) {
@@ -692,16 +710,16 @@ function endTurn(saveScore) {
 
         if (player.totalScore === 555) {
             player.totalScore = 0;
-            showToast("САМОСВАЛ! Ваш счет равен 555 и полностью обнуляется.", "danger");
+            broadcastToast(`САМОСВАЛ! У ${player.name} выпало 555 очков — счет полностью обнуляется!`, "danger");
         }
 
         checkOvertake();
 
         if (player.totalScore >= 1000) {
-            showToast(`🎉 Поздравляем! Игрок ${player.name} победил, набрав ${player.totalScore} очков!`, "success");
+            broadcastToast(`🎉 ПОБЕДА! Игрок ${player.name} набрал ${player.totalScore} очков и выиграл партию! 🏆`, "success");
             setTimeout(() => {
                 resetGame();
-            }, 2500);
+            }, 3000);
             return;
         }
     } else {
@@ -710,9 +728,9 @@ function endTurn(saveScore) {
             if (player.barrelAttempts >= 3) {
                 player.totalScore -= 100;
                 player.barrelAttempts = 0;
-                showToast("3 попытки на финальной бочке истекли! Штраф минус 100 очков и вы слетаете с бочки.", "danger");
+                broadcastToast(`${player.name}: 3 попытки на финальной бочке истекли! Штраф -100 очков и слёт с бочки.`, "danger");
             } else {
-                showToast(`Ход сгорел! Использована попытка на финальной бочке. Осталось попыток: ${3 - player.barrelAttempts}`, "warning");
+                broadcastToast(`${player.name} сгорел на финальной бочке. Осталось попыток: ${3 - player.barrelAttempts}`, "warning");
             }
         }
     }
@@ -867,7 +885,7 @@ function resetGame() {
 function toggleHelpModal(show) {
     const modal = document.getElementById('help-modal');
     if (!modal) return;
-    
+
     if (show) {
         modal.classList.add('active');
     } else {
