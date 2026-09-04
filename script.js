@@ -12,7 +12,9 @@ const firebaseConfig = {
     measurementId: "G-NSPFDRDEDY"
 };
 
-firebase.initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 const database = firebase.database();
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -135,8 +137,7 @@ const rollBtnElem = document.getElementById('roll-btn');
 if (rollBtnElem && !document.getElementById('bank-btn')) {
     const bankBtn = document.createElement('button');
     bankBtn.id = 'bank-btn';
-    bankBtn.className = 'btn';
-    bankBtn.style.backgroundColor = '#2ecc71';
+    bankBtn.className = 'btn btn-success';
     bankBtn.style.marginTop = '10px';
     bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
     bankBtn.onclick = bankScore;
@@ -144,10 +145,9 @@ if (rollBtnElem && !document.getElementById('bank-btn')) {
 }
 
 // ==========================================
-// 2. УВЕДОМЛЕНИЯ (ЛОКАЛЬНЫЕ И ГЛОБАЛЬНЫЕ)
+// 2. УВЕДОМЛЕНИЯ И СИСТЕМА РЕАКЦИЙ
 // ==========================================
 
-// Локальный показ всплывающего окна
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -164,7 +164,6 @@ function showToast(message, type = 'info') {
     }, 3500);
 }
 
-// Отправка уведомления ВСЕМ игрокам в комнате
 function broadcastToast(message, type = 'info') {
     database.ref(`rooms/${roomID}/messages`).set({
         text: message,
@@ -173,7 +172,6 @@ function broadcastToast(message, type = 'info') {
     });
 }
 
-// Подписка на сообщения комнаты
 database.ref(`rooms/${roomID}/messages`).on('value', (snapshot) => {
     const data = snapshot.val();
     if (data && data.text) {
@@ -181,10 +179,51 @@ database.ref(`rooms/${roomID}/messages`).on('value', (snapshot) => {
     }
 });
 
+// Отправка реакций через push()
+function sendReaction(emoji) {
+    if (!savedName) return;
+    database.ref(`rooms/${roomID}/reactions`).push({
+        emoji: emoji,
+        sender: savedName,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+    });
+}
+
+// Слушатель событий 'child_added' для корректного показа анимации
+const lastLoadTime = Date.now();
+database.ref(`rooms/${roomID}/reactions`)
+    .limitToLast(1)
+    .on('child_added', (snapshot) => {
+        const data = snapshot.val();
+        if (!data || !data.emoji || (data.timestamp && data.timestamp < lastLoadTime - 2000)) {
+            return;
+        }
+
+        const overlay = document.getElementById('reaction-overlay');
+        if (!overlay) return;
+
+        const elem = document.createElement('div');
+        elem.className = 'floating-reaction';
+
+        const randomLeft = Math.floor(Math.random() * 60) + 15;
+        elem.style.left = `${randomLeft}%`;
+
+        elem.innerHTML = `
+            <span class="emoji">${data.emoji}</span>
+            <span class="reaction-author">${data.sender}</span>
+        `;
+
+        overlay.appendChild(elem);
+
+        setTimeout(() => {
+            elem.remove();
+        }, 2200);
+    });
+
 function copyRoomLink() {
     navigator.clipboard.writeText(window.location.href).then(() => {
         showToast("Ссылка на комнату скопирована!", "success");
-    }).catch(err => {
+    }).catch(() => {
         showToast("Не удалось скопировать ссылку", "danger");
     });
 }
@@ -885,12 +924,7 @@ function resetGame() {
 function toggleHelpModal(show) {
     const modal = document.getElementById('help-modal');
     if (!modal) return;
-
-    if (show) {
-        modal.classList.add('active');
-    } else {
-        modal.classList.remove('active');
-    }
+    modal.style.display = show ? 'flex' : 'none';
 }
 
 function closeModalOnOverlay(event) {
