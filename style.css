@@ -262,15 +262,21 @@ h1 {
 }
 
 /* ==========================================
-   МОДАЛЬНЫЕ ОКНА
+   ВЕРХНИЕ КНОПКИ И СИСТЕМА РЕАКЦИЙ
    ========================================== */
 
-.help-btn {
+.top-buttons {
   position: fixed;
   top: 15px;
   right: 15px;
-  width: 36px;
-  height: 36px;
+  display: flex;
+  gap: 10px;
+  z-index: 1000;
+}
+
+.help-btn {
+  width: 38px;
+  height: 38px;
   background: #2c3e50;
   border: 1px solid #7f8c8d;
   border-radius: 8px;
@@ -281,7 +287,6 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
   transition: all 0.2s ease;
   box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
@@ -292,6 +297,66 @@ h1 {
   border-color: #95a5a6;
   transform: scale(1.05);
 }
+
+.reactions-wrapper {
+  position: relative;
+}
+
+.reactions-picker {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  background: #1e272c;
+  border: 1px solid #34495e;
+  border-radius: 12px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.reactions-picker.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.reactions-picker button {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-size: 20px;
+  padding: 6px 8px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.reactions-picker button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.player-reaction-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 18px;
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes popIn {
+  0% { transform: scale(0); }
+  80% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* ==========================================
+   МОДАЛЬНЫЕ ОКНА
+   ========================================== */
 
 .modal-overlay {
   position: fixed;
