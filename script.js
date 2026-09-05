@@ -28,14 +28,12 @@ const gameRef = database.ref(`rooms/${roomID}`);
 let isRolling = false;
 let activePlayersMap = {};
 
-// Уникальный ID игрока сохраняется для восстановления сессии
 let myPlayerId = localStorage.getItem('dice_player_id');
 if (!myPlayerId) {
     myPlayerId = 'player_' + Math.random().toString(36).substr(2, 9);
     localStorage.setItem('dice_player_id', myPlayerId);
 }
 
-// Запрос имени при каждом входе (или подстановка по умолчанию)
 let savedName = prompt("Введите ваше имя:") || "";
 if (!savedName.trim()) {
     savedName = "Игрок " + Math.floor(Math.random() * 100);
@@ -141,7 +139,7 @@ if (!document.getElementById('bank-btn')) {
 }
 
 // ==========================================
-// 2. УВЕДОМЛЕНИЯ И КОПИРОВАНИЕ
+// 2. УВЕДОМЛЕНИЯ, РЕАКЦИИ И КОПИРОВАНИЕ
 // ==========================================
 
 function copyRoomLink() {
@@ -167,6 +165,32 @@ function showToast(message, type = 'info') {
         setTimeout(() => toast.remove(), 500);
     }, 3000);
 }
+
+function toggleReactionsPicker(event) {
+    if (event) event.stopPropagation();
+    const picker = document.getElementById('reactions-picker');
+    if (picker) {
+        picker.classList.toggle('active');
+    }
+}
+
+function sendReaction(emoji) {
+    if (myPlayerIndex === null) return;
+    
+    database.ref(`rooms/${roomID}/players/${myPlayerIndex}/reaction`).set({
+        emoji: emoji,
+        timestamp: Date.now()
+    });
+    
+    toggleReactionsPicker();
+}
+
+document.addEventListener('click', (e) => {
+    const picker = document.getElementById('reactions-picker');
+    if (picker && picker.classList.contains('active') && !e.target.closest('.reactions-wrapper')) {
+        picker.classList.remove('active');
+    }
+});
 
 // ==========================================
 // 3. СИНХРОНИЗАЦИЯ ПРИСУТСТВИЯ И БД
@@ -787,14 +811,21 @@ function updateUI() {
 
     const tableBody = document.getElementById('score-table-body');
     if (tableBody) {
-        tableBody.innerHTML = gameState.players.map((p, idx) => `
-            <tr class="${activeIndex === idx ? 'active-row' : ''}">
-                <td>${idx === myPlayerIndex ? `${p.name} (Вы)` : p.name}</td>
-                <td><b>${p.totalScore || 0}</b></td>
-                <td>${getBoltStars(p.bolts)}</td>
-                <td>${getStatusBadge(p, idx)}</td>
-            </tr>
-        `).join('');
+        tableBody.innerHTML = gameState.players.map((p, idx) => {
+            let reactionHtml = '';
+            if (p.reaction && p.reaction.emoji && (Date.now() - p.reaction.timestamp < 3000)) {
+                reactionHtml = `<span class="player-reaction-badge">${p.reaction.emoji}</span>`;
+            }
+
+            return `
+                <tr class="${activeIndex === idx ? 'active-row' : ''}">
+                    <td>${idx === myPlayerIndex ? `${p.name} (Вы)` : p.name} ${reactionHtml}</td>
+                    <td><b>${p.totalScore || 0}</b></td>
+                    <td>${getBoltStars(p.bolts)}</td>
+                    <td>${getStatusBadge(p, idx)}</td>
+                </tr>
+            `;
+        }).join('');
     }
 
     const turnStatus = document.getElementById('turn-status');
@@ -812,7 +843,6 @@ function updateUI() {
         }
     }
 
-    // Отображение окна победы
     const winnerModal = document.getElementById('winner-modal');
     const winnerMsg = document.getElementById('winner-message');
     if (winnerModal && winnerMsg) {
@@ -831,7 +861,8 @@ function restartGame() {
         totalScore: 0,
         bolts: 0,
         barrelAttempts: 0,
-        hasEnteredGame: false
+        hasEnteredGame: false,
+        reaction: null
     }));
 
     const newGameState = {
