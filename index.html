@@ -18,11 +18,48 @@
         <button class="btn" id="roll-btn" onclick="rollAll()">БРОСИТЬ</button>
     </div>
 
+    <!-- Кнопка вызова правил (сверху справа) -->
+    <button class="help-btn" onclick="toggleHelpModal(true)" title="Правила бочек">?</button>
+
+    <!-- Модальное окно правил -->
+    <div class="modal-overlay" id="help-modal" onclick="closeModalOnOverlay(event)">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title">Правила бочек 🛢️</div>
+          <button class="close-btn" onclick="toggleHelpModal(false)">&times;</button>
+        </div>
+        <ul class="barrel-list">
+          <li class="barrel-item">
+            <strong>Первая бочка:</strong><br>
+            Интервал <b>200 ➔ 300</b> очков.
+          </li>
+          <li class="barrel-item">
+            <strong>Вторая бочка:</strong><br>
+            Интервал <b>600 ➔ 700</b> очков.
+          </li>
+          <li class="barrel-item" style="border-left-color: #e74c3c;">
+            <strong style="color: #e74c3c;">Финальная бочка:</strong><br>
+            Интервал <b>880 ➔ 1000</b> очков.<br>
+            Дается ровно <b>3 попытки</b>, чтобы набрать 1000+ очков. При неудаче — штраф -100 очков.
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Модальное окно победы -->
+    <div class="modal-overlay" id="winner-modal">
+      <div class="modal-content" style="text-align: center;">
+        <div class="modal-title" style="font-size: 24px; margin-bottom: 10px; color: #f1c40f;">🏆 ПОБЕДА! 🏆</div>
+        <div id="winner-message" style="font-size: 18px; margin-bottom: 20px; color: #ecf0f1;"></div>
+        <button class="btn" style="width: 100%; margin: 0;" onclick="restartGame()">НАЧАТЬ ЗАНОВО</button>
+      </div>
+    </div>
+
     <!-- ПОДКЛЮЧАЕМ СТАБИЛЬНЫЕ СКРИПТЫ FIREBASE COMPAT SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-    <!-- ОТЛАДЧИК ОШИБОК: если JS упадет, мы увидим причину прямо на экране смартфона -->
+    <!-- ОТЛАДЧИК ОШИБОК -->
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
             const errDiv = document.createElement('div');
@@ -40,34 +77,7 @@
         };
     </script>
 
-    <!-- Подключаем вашу игровую логику -->
-    <!-- Кнопка вызова правил (сверху справа) -->
-<button class="help-btn" onclick="toggleHelpModal(true)" title="Правила бочек">?</button>
-
-<!-- Модальное окно правил -->
-<div class="modal-overlay" id="help-modal" onclick="closeModalOnOverlay(event)">
-  <div class="modal-content">
-    <div class="modal-header">
-      <div class="modal-title">Правила бочек 🛢️</div>
-      <button class="close-btn" onclick="toggleHelpModal(false)">&times;</button>
-    </div>
-    <ul class="barrel-list">
-      <li class="barrel-item">
-        <strong>Первая бочка:</strong><br>
-        Интервал <b>200 ➔ 300</b> очков.
-      </li>
-      <li class="barrel-item">
-        <strong>Вторая бочка:</strong><br>
-        Интервал <b>600 ➔ 700</b> очков.
-      </li>
-      <li class="barrel-item" style="border-left-color: #e74c3c;">
-        <strong style="color: #e74c3c;">Финальная бочка:</strong><br>
-        Интервал <b>880 ➔ 1000</b> очков.<br>
-        Дается ровно <b>3 попытки</b>, чтобы набрать 1000+ очков. При неудаче — штраф -100 очков.
-      </li>
-    </ul>
-  </div>
-</div>
+    <!-- Подключаем игровую логику -->
     <script src="script.js"></script>
 </body>
 </html>
