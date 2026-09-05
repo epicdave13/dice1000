@@ -896,7 +896,7 @@ function updateUI() {
             }
 
             if (neededScore > 0) {
-                bankBtn.style.backgroundColor = '#e67e22';
+                bankBtn.style.backgroundColor = '#4a5568';
                 bankBtn.innerText = `ВАМ НУЖНО ЕЩЁ ${neededScore} ОЧКОВ`;
             } else {
                 bankBtn.style.backgroundColor = '#2ecc71';
@@ -917,9 +917,16 @@ function updateUI() {
     }
 }
 
-// БЕЗОПАСНЫЙ СБРОС ИГРЫ (не ломает игроков и не удаляет узлы)
+// БЕЗОПАСНЫЙ СБРОС ИГРЫ
 function restartGame() {
     if (!gameState.players || gameState.players.length === 0) return;
+
+    // Локальное мгновенное сбрасывание модального окна и состояния
+    gameState.winner = null;
+    const winnerModal = document.getElementById('winner-modal');
+    if (winnerModal) {
+        winnerModal.classList.remove('active');
+    }
 
     const resetPlayers = gameState.players.map(p => ({
         id: p.id,
