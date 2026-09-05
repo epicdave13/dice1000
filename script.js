@@ -674,7 +674,7 @@ function checkOvertake() {
 
     gameState.players.forEach((oppPlayer, oppIdx) => {
         if (oppPlayer && oppIdx !== currentIdx && oppPlayer.totalScore > 0) {
-            if (oldScore <= oppPlayer.totalScore && currentPlayer.totalScore > oppPlayer.totalScore) {
+            if (oldScore < oppPlayer.totalScore && currentPlayer.totalScore > oppPlayer.totalScore) {
                 oppPlayer.totalScore = Math.max(0, oppPlayer.totalScore - 50);
                 showToast(`Обгон! ${currentPlayer.name} обошел ${oppPlayer.name}. У соперника списано 50 очков!`, "success");
             }
