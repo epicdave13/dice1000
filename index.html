@@ -18,8 +18,23 @@
         <button class="btn" id="roll-btn" onclick="rollAll()">БРОСИТЬ</button>
     </div>
 
-    <!-- Кнопка вызова правил (сверху справа) -->
-    <button class="help-btn" onclick="toggleHelpModal(true)" title="Правила бочек">?</button>
+    <!-- Кнопки вызова реакций и правил (сверху справа) -->
+    <div class="top-buttons">
+      <div class="reactions-wrapper">
+        <button class="help-btn reaction-trigger" onclick="toggleReactionsPicker(event)" title="Реакции">😀</button>
+        <div class="reactions-picker" id="reactions-picker">
+          <button onclick="sendReaction('👍')">👍</button>
+          <button onclick="sendReaction('🔥')">🔥</button>
+          <button onclick="sendReaction('🎲')">🎲</button>
+          <button onclick="sendReaction('😱')">😱</button>
+          <button onclick="sendReaction('😎')">😎</button>
+          <button onclick="sendReaction('😭')">😭</button>
+          <button onclick="sendReaction('🤡')">🤡</button>
+          <button onclick="sendReaction('💣')">💣</button>
+        </div>
+      </div>
+      <button class="help-btn" onclick="toggleHelpModal(true)" title="Правила бочек">?</button>
+    </div>
 
     <!-- Модальное окно правил -->
     <div class="modal-overlay" id="help-modal" onclick="closeModalOnOverlay(event)">
