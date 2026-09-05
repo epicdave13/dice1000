@@ -29,11 +29,11 @@ h1 {
     width: 60px;
     height: 60px;
     perspective: 300px;
+    transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
 .cube {
     width: 60px;
-    /* Жестко фиксируем размер */
     height: 60px;
     position: relative;
     transform-style: preserve-3d;
@@ -59,16 +59,12 @@ h1 {
     padding: 5px;
     box-sizing: border-box;
     backface-visibility: hidden;
-    /* Магия CSS: прячет вылезающие задние грани */
 }
 
 .scene.selected .face {
     border-color: #f1c40f;
-    /* Золотая рамка */
     box-shadow: 0 0 15px #f1c40f;
-    /* Золотое свечение */
     background: #fffdf0;
-    /* Слегка меняем фон */
 }
 
 /* Стили точек */
@@ -90,114 +86,35 @@ h1 {
 }
 
 /* Расположение точек по сетке */
-.face div:nth-child(1) {
-    grid-area: d;
-}
-
-.two div:nth-child(1) {
-    grid-area: a;
-}
-
-.two div:nth-child(2) {
-    grid-area: g;
-}
-
-.three div:nth-child(1) {
-    grid-area: a;
-}
-
-.three div:nth-child(2) {
-    grid-area: d;
-}
-
-.three div:nth-child(3) {
-    grid-area: g;
-}
-
-.four div:nth-child(1) {
-    grid-area: a;
-}
-
-.four div:nth-child(2) {
-    grid-area: b;
-}
-
-.four div:nth-child(3) {
-    grid-area: f;
-}
-
-.four div:nth-child(4) {
-    grid-area: g;
-}
-
-.five div:nth-child(1) {
-    grid-area: a;
-}
-
-.five div:nth-child(2) {
-    grid-area: b;
-}
-
-.five div:nth-child(3) {
-    grid-area: d;
-}
-
-.five div:nth-child(4) {
-    grid-area: f;
-}
-
-.five div:nth-child(5) {
-    grid-area: g;
-}
-
-.six div:nth-child(1) {
-    grid-area: a;
-}
-
-.six div:nth-child(2) {
-    grid-area: b;
-}
-
-.six div:nth-child(3) {
-    grid-area: c;
-}
-
-.six div:nth-child(4) {
-    grid-area: e;
-}
-
-.six div:nth-child(5) {
-    grid-area: f;
-}
-
-.six div:nth-child(6) {
-    grid-area: g;
-}
+.face div:nth-child(1) { grid-area: d; }
+.two div:nth-child(1) { grid-area: a; }
+.two div:nth-child(2) { grid-area: g; }
+.three div:nth-child(1) { grid-area: a; }
+.three div:nth-child(2) { grid-area: d; }
+.three div:nth-child(3) { grid-area: g; }
+.four div:nth-child(1) { grid-area: a; }
+.four div:nth-child(2) { grid-area: b; }
+.four div:nth-child(3) { grid-area: f; }
+.four div:nth-child(4) { grid-area: g; }
+.five div:nth-child(1) { grid-area: a; }
+.five div:nth-child(2) { grid-area: b; }
+.five div:nth-child(3) { grid-area: d; }
+.five div:nth-child(4) { grid-area: f; }
+.five div:nth-child(5) { grid-area: g; }
+.six div:nth-child(1) { grid-area: a; }
+.six div:nth-child(2) { grid-area: b; }
+.six div:nth-child(3) { grid-area: c; }
+.six div:nth-child(4) { grid-area: e; }
+.six div:nth-child(5) { grid-area: f; }
+.six div:nth-child(6) { grid-area: g; }
 
 /* Позиции граней в 3D */
-.front {
-    transform: rotateY(0deg) translateZ(30px);
-}
-
-.back {
-    transform: rotateY(180deg) translateZ(30px);
-}
-
-.right {
-    transform: rotateY(90deg) translateZ(30px);
-}
-
-.left {
-    transform: rotateY(-90deg) translateZ(30px);
-}
-
-.top {
-    transform: rotateX(90deg) translateZ(30px);
-}
-
-.bottom {
-    transform: rotateX(-90deg) translateZ(30px);
-}
+.front { transform: rotateY(0deg) translateZ(30px); }
+.back { transform: rotateY(180deg) translateZ(30px); }
+.right { transform: rotateY(90deg) translateZ(30px); }
+.left { transform: rotateY(-90deg) translateZ(30px); }
+.top { transform: rotateX(90deg) translateZ(30px); }
+.bottom { transform: rotateX(-90deg) translateZ(30px); }
 
 /* Кнопка */
 .btn {
@@ -220,7 +137,7 @@ h1 {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
 }
 
-/* Контейнер для уведомлений (всегда поверх игры) */
+/* Контейнер для уведомлений */
 #toast-container {
     position: fixed;
     top: 20px;
@@ -233,10 +150,9 @@ h1 {
     width: 90%;
     max-width: 350px;
     pointer-events: none;
-    /* Чтобы не мешали тапать под ними */
 }
 
-/* Стиль самой плашки уведомления */
+/* Стиль плашки уведомления */
 .toast {
     background: rgba(0, 0, 0, 0.85);
     color: #fff;
@@ -246,67 +162,41 @@ h1 {
     text-align: center;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
     border-left: 5px solid #e67e22;
-    /* Оранжевая полоса по умолчанию */
     backdrop-filter: blur(5px);
-
-    /* Анимация появления и исчезновения */
     animation: slideIn 0.3s ease-out forwards;
     transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
-/* Разные цвета полосок для разных типов событий */
-.toast.success {
-    border-left-color: #2ecc71;
-}
-
-/* Зеленый (запись очков) */
-.toast.danger {
-    border-left-color: #e74c3c;
-}
-
-/* Красный (крах / болт) */
-.toast.warning {
-    border-left-color: #f1c40f;
-}
-
-/* Желтый (бочки / подтверждение) */
+.toast.success { border-left-color: #2ecc71; }
+.toast.danger { border-left-color: #e74c3c; }
+.toast.warning { border-left-color: #f1c40f; }
 
 @keyframes slideIn {
     0% {
         transform: translateY(-20px);
         opacity: 0;
     }
-
     100% {
         transform: translateY(0);
         opacity: 1;
     }
 }
 
-/* Класс для плавного скрытия кубиков между ходами */
+/* Скрытие кубиков */
 .scene.hidden {
     opacity: 0;
     transform: scale(0.5);
-    /* Эффект уменьшения при исчезновении */
     pointer-events: none;
-    /* Запрещаем клики и тапы по скрытым кубикам */
-    transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
-/* Возвращаем стандартные свойства, когда класса hidden нет */
-.scene {
-    transition: opacity 0.4s ease, transform 0.4s ease;
-}
-
-/* Мягкая зеленая подсветка для результативных кубиков (подсказка) */
-/* Стиль для "мертво" заблокированных кубиков прошлых бросков */
+/* Стиль для заблокированных кубиков прошлых бросков */
 .scene.locked .face {
     border-color: #7f8c8d !important;
     background: #e1e4e6 !important;
     box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.15) !important;
 }
 
-/* Контейнер для таблицы счета */
+/* Таблица счета */
 .score-table {
     width: 90%;
     max-width: 400px;
@@ -330,14 +220,12 @@ h1 {
 .score-table th {
     background-color: rgba(0, 0, 0, 0.6);
     color: #f1c40f;
-    /* Золотой цвет для заголовков */
     font-weight: bold;
     text-transform: uppercase;
     font-size: 13px;
     letter-spacing: 1px;
 }
 
-/* Подсветка строки игрока, который сейчас ходит */
 .score-table tr.active-row {
     background-color: rgba(241, 196, 15, 0.15);
     box-shadow: inset 4px 0 0 #f1c40f;
@@ -348,14 +236,12 @@ h1 {
     font-weight: bold;
 }
 
-/* Стилизация болтов (точки вместо цифр) */
 .bolt-indicator {
     color: #e74c3c;
     font-weight: bold;
     letter-spacing: 2px;
 }
 
-/* Статус бочки */
 .status-badge {
     font-size: 12px;
     padding: 3px 8px;
@@ -370,23 +256,15 @@ h1 {
 }
 
 @keyframes pulse {
-    0% {
-        opacity: 0.7;
-    }
-
-    50% {
-        opacity: 1;
-    }
-
-    100% {
-        opacity: 0.7;
-    }
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
 }
+
 /* ==========================================
-   КНОПКА И МОДАЛЬНОЕ ОКНО ПРАВИЛ
+   МОДАЛЬНЫЕ ОКНА
    ========================================== */
 
-/* Квадратная кнопка со скругленными углами в правом верхнем углу */
 .help-btn {
   position: fixed;
   top: 15px;
@@ -415,7 +293,6 @@ h1 {
   transform: scale(1.05);
 }
 
-/* Фон модального окна */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -437,7 +314,6 @@ h1 {
   pointer-events: auto;
 }
 
-/* Карточка модального окна */
 .modal-content {
   background: #1e272c;
   color: #ecf0f1;
