@@ -390,6 +390,14 @@ gameRef.on('value', (snapshot) => {
         }
         if (!gameState.selectedDiceIds) gameState.selectedDiceIds = [false, false, false, false, false];
 
+        // Принудительное скрытие окна победы на всех клиентах, если winner в базе обнулён
+        if (!gameState.winner) {
+            const winnerModal = document.getElementById('winner-modal');
+            if (winnerModal) {
+                winnerModal.classList.remove('active');
+            }
+        }
+
         if (myPlayerIndex === null) {
             let existingIndex = gameState.players.findIndex(p => p && p.id === myPlayerId);
             if (existingIndex !== -1) {
@@ -917,16 +925,9 @@ function updateUI() {
     }
 }
 
-// БЕЗОПАСНЫЙ СБРОС ИГРЫ
+// МГНОВЕННЫЙ СБРОС ИГРЫ ДЛЯ ВСЕХ УЧАСТНИКОВ
 function restartGame() {
     if (!gameState.players || gameState.players.length === 0) return;
-
-    // Локальное мгновенное сбрасывание модального окна и состояния
-    gameState.winner = null;
-    const winnerModal = document.getElementById('winner-modal');
-    if (winnerModal) {
-        winnerModal.classList.remove('active');
-    }
 
     const resetPlayers = gameState.players.map(p => ({
         id: p.id,
@@ -938,7 +939,7 @@ function restartGame() {
         reaction: null
     }));
 
-    const resetUpdates = {
+    const resetState = {
         gameStarted: true,
         currentPlayer: 0,
         players: resetPlayers,
@@ -958,7 +959,8 @@ function restartGame() {
         selectedDiceIds: [false, false, false, false, false]
     };
 
-    gameRef.update(resetUpdates).then(() => {
+    // Отправляем полное новое состояние в Firebase
+    gameRef.set(resetState).then(() => {
         showToast("Игра успешно перезапущена!", "success");
     }).catch(err => {
         console.error("Ошибка при перезапуске:", err);
