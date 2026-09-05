@@ -62,6 +62,7 @@ let gameState = {
     mustConfirm: false,
     lastRollDiceObjects: [],
     lastCalculatedScore: 0,
+    winner: null,
     diceVisuals: [
         { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
         { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
@@ -337,6 +338,7 @@ gameRef.on('value', (snapshot) => {
             barrelAttempts: 0,
             hasEnteredGame: false
         }];
+        gameState.winner = null;
         myPlayerIndex = 0;
         gameRef.set(gameState);
         setupPresence(myPlayerIndex);
@@ -401,7 +403,7 @@ gameRef.on('value', (snapshot) => {
 // ==========================================
 
 function toggleSelect(id) {
-    if (gameState.currentPlayer !== myPlayerIndex || isRolling) return;
+    if (gameState.currentPlayer !== myPlayerIndex || isRolling || gameState.winner) return;
     if (gameState.mustConfirm) return;
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
 
@@ -458,7 +460,7 @@ function rollAll() {
         return;
     }
 
-    if (isRolling) return;
+    if (isRolling || gameState.winner) return;
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
 
     let selectedCountFromLastRoll = 0;
@@ -574,7 +576,7 @@ function rollAll() {
 }
 
 function bankScore() {
-    if (gameState.currentPlayer !== myPlayerIndex || isRolling) return;
+    if (gameState.currentPlayer !== myPlayerIndex || isRolling || gameState.winner) return;
     if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
 
     if (gameState.mustConfirm) {
@@ -674,8 +676,23 @@ function endTurn(saveScore) {
         checkOvertake();
 
         if (player.totalScore >= 1000) {
-            showToast(`Поздравляем! Игрок ${player.name} победил, набрав ${player.totalScore} очков!`, "success");
-            resetGame();
+            gameState.winner = {
+                name: player.name,
+                score: player.totalScore
+            };
+
+            gameState.turnScore = 0;
+            gameState.isFirstRollInTurn = true;
+            gameState.mustConfirm = false;
+            gameState.lastRollDiceObjects = [];
+            gameState.lastCalculatedScore = 0;
+
+            for (let i = 0; i < 5; i++) {
+                gameState.selectedDiceIds[i] = false;
+                gameState.diceVisuals[i] = { hidden: true, locked: false, rx: 0, ry: 0, value: 1 };
+            }
+
+            gameRef.set(gameState);
             return;
         }
     } else {
@@ -732,7 +749,7 @@ function updateUI() {
     const rollBtn = document.getElementById('roll-btn');
     const bankBtn = document.getElementById('bank-btn');
     if (rollBtn && bankBtn) {
-        if (activeIndex === myPlayerIndex && !isRolling) {
+        if (activeIndex === myPlayerIndex && !isRolling && !gameState.winner) {
             rollBtn.disabled = false;
             rollBtn.style.opacity = "1";
             bankBtn.disabled = false;
@@ -794,10 +811,50 @@ function updateUI() {
             bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
         }
     }
+
+    // Отображение окна победы
+    const winnerModal = document.getElementById('winner-modal');
+    const winnerMsg = document.getElementById('winner-message');
+    if (winnerModal && winnerMsg) {
+        if (gameState.winner) {
+            winnerMsg.innerHTML = `Игрок <b>${gameState.winner.name}</b> победил, набрав <b>${gameState.winner.score}</b> очков!`;
+            winnerModal.classList.add('active');
+        } else {
+            winnerModal.classList.remove('active');
+        }
+    }
 }
 
-function resetGame() {
-    gameRef.remove();
+function restartGame() {
+    const resetPlayers = gameState.players.map(p => ({
+        ...p,
+        totalScore: 0,
+        bolts: 0,
+        barrelAttempts: 0,
+        hasEnteredGame: false
+    }));
+
+    const newGameState = {
+        gameStarted: true,
+        currentPlayer: 0,
+        players: resetPlayers,
+        turnScore: 0,
+        isFirstRollInTurn: true,
+        mustConfirm: false,
+        lastRollDiceObjects: [],
+        lastCalculatedScore: 0,
+        winner: null,
+        diceVisuals: [
+            { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+            { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+            { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+            { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+            { hidden: true, locked: false, rx: 0, ry: 0, value: 1 }
+        ],
+        selectedDiceIds: [false, false, false, false, false]
+    };
+
+    gameRef.set(newGameState);
 }
 
 // ==========================================
@@ -823,7 +880,6 @@ function closeModalOnOverlay(event) {
 
 window.addEventListener('beforeunload', () => {
     if (myPlayerIndex !== null) {
-        // Принудительно удаляем статус присутствия прямо перед закрытием вкладки
         database.ref(`rooms/${roomID}/activePlayers/${myPlayerIndex}`).remove();
     }
 });
