@@ -98,8 +98,11 @@ const cubeTemplate = (id) => `
 `;
 
 const board = document.getElementById('game-board');
-for (let i = 0; i < 5; i++) {
-    board.innerHTML += cubeTemplate(i);
+if (board) {
+    board.innerHTML = '';
+    for (let i = 0; i < 5; i++) {
+        board.innerHTML += cubeTemplate(i);
+    }
 }
 
 if (!document.getElementById('game-ui')) {
@@ -128,14 +131,17 @@ if (!document.getElementById('game-ui')) {
 }
 
 if (!document.getElementById('bank-btn')) {
-    const bankBtn = document.createElement('button');
-    bankBtn.id = 'bank-btn';
-    bankBtn.className = 'btn';
-    bankBtn.style.backgroundColor = '#2ecc71';
-    bankBtn.style.marginTop = '10px';
-    bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
-    bankBtn.onclick = bankScore;
-    document.getElementById('roll-btn').parentNode.appendChild(bankBtn);
+    const rollBtn = document.getElementById('roll-btn');
+    if (rollBtn && rollBtn.parentNode) {
+        const bankBtn = document.createElement('button');
+        bankBtn.id = 'bank-btn';
+        bankBtn.className = 'btn';
+        bankBtn.style.backgroundColor = '#2ecc71';
+        bankBtn.style.marginTop = '10px';
+        bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
+        bankBtn.onclick = bankScore;
+        rollBtn.parentNode.appendChild(bankBtn);
+    }
 }
 
 // ==========================================
@@ -202,7 +208,9 @@ function calculateDiceScore(diceObjects) {
     }
 
     let counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-    diceObjects.forEach(d => counts[d.value]++);
+    diceObjects.forEach(d => {
+        if (d && d.value) counts[d.value]++;
+    });
 
     let scoringIndices = [];
     let groups = [];
@@ -299,127 +307,145 @@ function setupPresence(playerIndex) {
 }
 
 database.ref(`rooms/${roomID}/activePlayers`).on('value', (snapshot) => {
-    const activePlayers = snapshot.val() || {};
-    const activeKeys = Object.keys(activePlayers).filter(k => activePlayers[k] === true);
+    try {
+        const activePlayers = snapshot.val() || {};
+        const activeKeys = Object.keys(activePlayers).filter(k => activePlayers[k] === true);
 
-    activePlayersMap = activePlayers;
+        activePlayersMap = activePlayers;
 
-    if (activeKeys.length === 0) {
-        gameRef.remove();
-        return;
-    }
-
-    if (myPlayerIndex !== null) {
-        if (activeKeys.length === 1 && activeKeys.includes(String(myPlayerIndex))) {
-            gameRef.onDisconnect().remove();
-        } else {
-            gameRef.onDisconnect().cancel();
+        if (activeKeys.length === 0) {
+            gameRef.remove();
+            return;
         }
 
-        if (!activePlayersMap[gameState.currentPlayer] && gameState.players && gameState.players.length > 0) {
-            let nextPlayer = (gameState.currentPlayer + 1) % gameState.players.length;
-            let attempts = 0;
-
-            while (!activePlayersMap[nextPlayer] && attempts < gameState.players.length) {
-                nextPlayer = (nextPlayer + 1) % gameState.players.length;
-                attempts++;
+        if (myPlayerIndex !== null) {
+            if (activeKeys.length === 1 && activeKeys.includes(String(myPlayerIndex))) {
+                gameRef.onDisconnect().remove();
+            } else {
+                gameRef.onDisconnect().cancel();
             }
 
-            const activeIndices = Object.keys(activePlayersMap).map(Number).sort((a,b) => a - b);
-            if (activeIndices[0] === myPlayerIndex) {
-                gameRef.update({
-                    currentPlayer: nextPlayer,
-                    turnScore: 0,
-                    isFirstRollInTurn: true,
-                    mustConfirm: false,
-                    lastRollDiceObjects: [],
-                    lastCalculatedScore: 0,
-                    selectedDiceIds: [false, false, false, false, false],
-                    diceVisuals: [
-                        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
-                        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
-                        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
-                        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
-                        { hidden: true, locked: false, rx: 0, ry: 0, value: 1 }
-                    ]
-                });
+            if (!activePlayersMap[gameState.currentPlayer] && gameState.players && gameState.players.length > 0) {
+                let nextPlayer = (gameState.currentPlayer + 1) % gameState.players.length;
+                let attempts = 0;
+
+                while (!activePlayersMap[nextPlayer] && attempts < gameState.players.length) {
+                    nextPlayer = (nextPlayer + 1) % gameState.players.length;
+                    attempts++;
+                }
+
+                const activeIndices = Object.keys(activePlayersMap).map(Number).sort((a,b) => a - b);
+                if (activeIndices[0] === myPlayerIndex) {
+                    gameRef.update({
+                        currentPlayer: nextPlayer,
+                        turnScore: 0,
+                        isFirstRollInTurn: true,
+                        mustConfirm: false,
+                        lastRollDiceObjects: [],
+                        lastCalculatedScore: 0,
+                        selectedDiceIds: [false, false, false, false, false],
+                        diceVisuals: [
+                            { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+                            { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+                            { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+                            { hidden: true, locked: false, rx: 0, ry: 0, value: 1 },
+                            { hidden: true, locked: false, rx: 0, ry: 0, value: 1 }
+                        ]
+                    });
+                }
             }
         }
-    }
 
-    updateUI();
+        updateUI();
+    } catch (e) {
+        console.error("Ошибка обновления активных игроков:", e);
+    }
 });
 
 gameRef.on('value', (snapshot) => {
-    const data = snapshot.val();
+    try {
+        const data = snapshot.val();
 
-    if (!data) {
-        gameState.players = [{
-            id: myPlayerId,
-            name: savedName,
-            totalScore: 0,
-            bolts: 0,
-            barrelAttempts: 0,
-            hasEnteredGame: false
-        }];
-        gameState.winner = null;
-        myPlayerIndex = 0;
-        gameRef.set(gameState);
-        setupPresence(myPlayerIndex);
-        return;
-    }
-
-    gameState = data;
-    if (!gameState.players) gameState.players = [];
-    if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
-
-    if (myPlayerIndex === null) {
-        let existingIndex = gameState.players.findIndex(p => p.id === myPlayerId);
-        if (existingIndex !== -1) {
-            myPlayerIndex = existingIndex;
-            gameState.players[myPlayerIndex].name = savedName;
-        } else {
-            myPlayerIndex = gameState.players.length;
-            gameState.players.push({
+        if (!data) {
+            gameState.players = [{
                 id: myPlayerId,
                 name: savedName,
                 totalScore: 0,
                 bolts: 0,
                 barrelAttempts: 0,
                 hasEnteredGame: false
-            });
-            gameRef.child('players').set(gameState.players);
+            }];
+            gameState.winner = null;
+            myPlayerIndex = 0;
+            gameRef.set(gameState);
+            setupPresence(myPlayerIndex);
+            return;
         }
-        setupPresence(myPlayerIndex);
+
+        gameState = Object.assign({}, gameState, data);
+        if (!gameState.players) gameState.players = [];
+        if (!gameState.lastRollDiceObjects) gameState.lastRollDiceObjects = [];
+        if (!gameState.diceVisuals) {
+            gameState.diceVisuals = Array(5).fill(0).map(() => ({ hidden: true, locked: false, rx: 0, ry: 0, value: 1 }));
+        }
+        if (!gameState.selectedDiceIds) gameState.selectedDiceIds = [false, false, false, false, false];
+
+        if (myPlayerIndex === null) {
+            let existingIndex = gameState.players.findIndex(p => p && p.id === myPlayerId);
+            if (existingIndex !== -1) {
+                myPlayerIndex = existingIndex;
+                if (gameState.players[myPlayerIndex].name !== savedName) {
+                    gameState.players[myPlayerIndex].name = savedName;
+                    database.ref(`rooms/${roomID}/players/${myPlayerIndex}/name`).set(savedName);
+                }
+            } else {
+                myPlayerIndex = gameState.players.length;
+                const newPlayer = {
+                    id: myPlayerId,
+                    name: savedName,
+                    totalScore: 0,
+                    bolts: 0,
+                    barrelAttempts: 0,
+                    hasEnteredGame: false
+                };
+                gameState.players.push(newPlayer);
+                database.ref(`rooms/${roomID}/players/${myPlayerIndex}`).set(newPlayer);
+            }
+            setupPresence(myPlayerIndex);
+        }
+
+        for (let i = 0; i < 5; i++) {
+            const scene = document.getElementById(`scene-${i}`);
+            const cube = document.getElementById(`cube-${i}`);
+            if (!scene || !cube) continue;
+
+            const dv = gameState.diceVisuals[i] || { hidden: true, locked: false, rx: 0, ry: 0, value: 1 };
+
+            if (dv.hidden) {
+                scene.classList.add('hidden');
+            } else {
+                scene.classList.remove('hidden');
+            }
+
+            if (gameState.selectedDiceIds[i]) {
+                scene.classList.add('selected');
+            } else {
+                scene.classList.remove('selected');
+            }
+
+            if (dv.locked) {
+                scene.classList.add('locked');
+            } else {
+                scene.classList.remove('locked');
+            }
+
+            cube.style.transform = `rotateX(${dv.rx || 0}deg) rotateY(${dv.ry || 0}deg) ${faceTransforms[dv.value || 1]}`;
+        }
+
+        updateUI();
+    } catch (e) {
+        console.error("Ошибка при синхронизации состояния:", e);
     }
-
-    for (let i = 0; i < 5; i++) {
-        const scene = document.getElementById(`scene-${i}`);
-        const cube = document.getElementById(`cube-${i}`);
-        const dv = gameState.diceVisuals[i];
-
-        if (dv.hidden) {
-            scene.classList.add('hidden');
-        } else {
-            scene.classList.remove('hidden');
-        }
-
-        if (gameState.selectedDiceIds[i]) {
-            scene.classList.add('selected');
-        } else {
-            scene.classList.remove('selected');
-        }
-
-        if (dv.locked) {
-            scene.classList.add('locked');
-        } else {
-            scene.classList.remove('locked');
-        }
-
-        cube.style.transform = `rotateX(${dv.rx}deg) rotateY(${dv.ry}deg) ${faceTransforms[dv.value]}`;
-    }
-
-    updateUI();
 });
 
 // ==========================================
@@ -560,8 +586,8 @@ function rollAll() {
         if (calculation.score === 0) {
             let message = `Выпало 0 очков! Ход переходит к следующему игроку.`;
 
-            if (gameState.isFirstRollInTurn && activePlayer.totalScore >= 50 && !isPlayerOnBarrel(activePlayer.totalScore)) {
-                activePlayer.bolts++;
+            if (activePlayer && gameState.isFirstRollInTurn && activePlayer.totalScore >= 50 && !isPlayerOnBarrel(activePlayer.totalScore)) {
+                activePlayer.bolts = (activePlayer.bolts || 0) + 1;
                 message = `Ноль очков! Вы получаете БОЛТ.`;
                 if (activePlayer.bolts >= 3) {
                     activePlayer.bolts = 0;
@@ -634,10 +660,12 @@ function bankScore() {
 function checkOvertake() {
     const currentIdx = gameState.currentPlayer;
     const currentPlayer = gameState.players[currentIdx];
+    if (!currentPlayer) return;
+
     let oldScore = currentPlayer.totalScore - gameState.turnScore;
 
     gameState.players.forEach((oppPlayer, oppIdx) => {
-        if (oppIdx !== currentIdx && oppPlayer.totalScore > 0) {
+        if (oppPlayer && oppIdx !== currentIdx && oppPlayer.totalScore > 0) {
             if (oldScore <= oppPlayer.totalScore && currentPlayer.totalScore > oppPlayer.totalScore) {
                 oppPlayer.totalScore = Math.max(0, oppPlayer.totalScore - 50);
                 showToast(`Обгон! ${currentPlayer.name} обошел ${oppPlayer.name}. У соперника списано 50 очков!`, "success");
@@ -648,6 +676,7 @@ function checkOvertake() {
 
 function endTurn(saveScore) {
     const player = gameState.players[gameState.currentPlayer];
+    if (!player) return;
 
     if (saveScore) {
         if (!player.hasEnteredGame && gameState.turnScore < 50) {
@@ -716,12 +745,12 @@ function endTurn(saveScore) {
                 gameState.diceVisuals[i] = { hidden: true, locked: false, rx: 0, ry: 0, value: 1 };
             }
 
-            gameRef.set(gameState);
+            gameRef.update(gameState);
             return;
         }
     } else {
         if (player.totalScore >= 880 && player.totalScore < 1000) {
-            player.barrelAttempts++;
+            player.barrelAttempts = (player.barrelAttempts || 0) + 1;
             if (player.barrelAttempts >= 3) {
                 player.totalScore -= 100;
                 player.barrelAttempts = 0;
@@ -752,7 +781,17 @@ function endTurn(saveScore) {
         gameState.diceVisuals[i] = { hidden: true, locked: false, rx: 0, ry: 0, value: 1 };
     }
 
-    gameRef.set(gameState);
+    gameRef.update({
+        players: gameState.players,
+        currentPlayer: gameState.currentPlayer,
+        turnScore: gameState.turnScore,
+        isFirstRollInTurn: gameState.isFirstRollInTurn,
+        mustConfirm: gameState.mustConfirm,
+        lastRollDiceObjects: gameState.lastRollDiceObjects,
+        lastCalculatedScore: gameState.lastCalculatedScore,
+        selectedDiceIds: gameState.selectedDiceIds,
+        diceVisuals: gameState.diceVisuals
+    });
 }
 
 function isPlayerOnBarrel(score) {
@@ -794,6 +833,7 @@ function updateUI() {
     };
 
     const getStatusBadge = (playerObj, playerIdx) => {
+        if (!playerObj) return "";
         const isOnline = Boolean(activePlayersMap && activePlayersMap[playerIdx] === true);
         if (!isOnline) {
             return "<span class='status-badge' style='background:#7f8c8d;'>Оффлайн</span>";
@@ -812,6 +852,7 @@ function updateUI() {
     const tableBody = document.getElementById('score-table-body');
     if (tableBody) {
         tableBody.innerHTML = gameState.players.map((p, idx) => {
+            if (!p) return '';
             let reactionHtml = '';
             if (p.reaction && p.reaction.emoji && (Date.now() - p.reaction.timestamp < 3000)) {
                 reactionHtml = `<span class="player-reaction-badge">${p.reaction.emoji}</span>`;
@@ -838,8 +879,29 @@ function updateUI() {
             bankBtn.style.backgroundColor = '#7f8c8d';
             bankBtn.innerText = 'ПОДТВЕРДИТЕ БРОСКОМ';
         } else {
-            bankBtn.style.backgroundColor = '#2ecc71';
-            bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
+            const activePlayer = gameState.players[activeIndex];
+            let neededScore = 0;
+
+            if (activePlayer) {
+                let score = activePlayer.totalScore || 0;
+                let turn = gameState.turnScore || 0;
+
+                if (score >= 200 && score < 300) {
+                    neededScore = 300 - (score + turn);
+                } else if (score >= 600 && score < 700) {
+                    neededScore = 700 - (score + turn);
+                } else if (score >= 880 && score < 1000) {
+                    neededScore = 1000 - (score + turn);
+                }
+            }
+
+            if (neededScore > 0) {
+                bankBtn.style.backgroundColor = '#e67e22';
+                bankBtn.innerText = `ВАМ НУЖНО ЕЩЁ ${neededScore} ОЧКОВ`;
+            } else {
+                bankBtn.style.backgroundColor = '#2ecc71';
+                bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
+            }
         }
     }
 
@@ -855,9 +917,13 @@ function updateUI() {
     }
 }
 
+// БЕЗОПАСНЫЙ СБРОС ИГРЫ (не ломает игроков и не удаляет узлы)
 function restartGame() {
+    if (!gameState.players || gameState.players.length === 0) return;
+
     const resetPlayers = gameState.players.map(p => ({
-        ...p,
+        id: p.id,
+        name: p.name,
         totalScore: 0,
         bolts: 0,
         barrelAttempts: 0,
@@ -865,7 +931,7 @@ function restartGame() {
         reaction: null
     }));
 
-    const newGameState = {
+    const resetUpdates = {
         gameStarted: true,
         currentPlayer: 0,
         players: resetPlayers,
@@ -885,7 +951,11 @@ function restartGame() {
         selectedDiceIds: [false, false, false, false, false]
     };
 
-    gameRef.set(newGameState);
+    gameRef.update(resetUpdates).then(() => {
+        showToast("Игра успешно перезапущена!", "success");
+    }).catch(err => {
+        console.error("Ошибка при перезапуске:", err);
+    });
 }
 
 // ==========================================
