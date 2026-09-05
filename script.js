@@ -390,7 +390,6 @@ gameRef.on('value', (snapshot) => {
         }
         if (!gameState.selectedDiceIds) gameState.selectedDiceIds = [false, false, false, false, false];
 
-        // Принудительное скрытие окна победы на всех клиентах, если winner в базе обнулён
         if (!gameState.winner) {
             const winnerModal = document.getElementById('winner-modal');
             if (winnerModal) {
@@ -398,29 +397,27 @@ gameRef.on('value', (snapshot) => {
             }
         }
 
-        if (myPlayerIndex === null) {
-            let existingIndex = gameState.players.findIndex(p => p && p.id === myPlayerId);
-            if (existingIndex !== -1) {
-                myPlayerIndex = existingIndex;
-                if (gameState.players[myPlayerIndex].name !== savedName) {
-                    gameState.players[myPlayerIndex].name = savedName;
-                    database.ref(`rooms/${roomID}/players/${myPlayerIndex}/name`).set(savedName);
-                }
-            } else {
-                myPlayerIndex = gameState.players.length;
-                const newPlayer = {
-                    id: myPlayerId,
-                    name: savedName,
-                    totalScore: 0,
-                    bolts: 0,
-                    barrelAttempts: 0,
-                    hasEnteredGame: false
-                };
-                gameState.players.push(newPlayer);
-                database.ref(`rooms/${roomID}/players/${myPlayerIndex}`).set(newPlayer);
+        let existingIndex = gameState.players.findIndex(p => p && p.id === myPlayerId);
+        if (existingIndex !== -1) {
+            myPlayerIndex = existingIndex;
+            if (gameState.players[myPlayerIndex].name !== savedName) {
+                gameState.players[myPlayerIndex].name = savedName;
+                database.ref(`rooms/${roomID}/players/${myPlayerIndex}/name`).set(savedName);
             }
-            setupPresence(myPlayerIndex);
+        } else {
+            myPlayerIndex = gameState.players.length;
+            const newPlayer = {
+                id: myPlayerId,
+                name: savedName,
+                totalScore: 0,
+                bolts: 0,
+                barrelAttempts: 0,
+                hasEnteredGame: false
+            };
+            gameState.players.push(newPlayer);
+            database.ref(`rooms/${roomID}/players/${myPlayerIndex}`).set(newPlayer);
         }
+        setupPresence(myPlayerIndex);
 
         for (let i = 0; i < 5; i++) {
             const scene = document.getElementById(`scene-${i}`);
@@ -925,19 +922,34 @@ function updateUI() {
     }
 }
 
-// МГНОВЕННЫЙ СБРОС ИГРЫ ДЛЯ ВСЕХ УЧАСТНИКОВ
 function restartGame() {
     if (!gameState.players || gameState.players.length === 0) return;
 
-    const resetPlayers = gameState.players.map(p => ({
-        id: p.id,
-        name: p.name,
-        totalScore: 0,
-        bolts: 0,
-        barrelAttempts: 0,
-        hasEnteredGame: false,
-        reaction: null
-    }));
+    const activeIndices = Object.keys(activePlayersMap || {})
+        .filter(key => activePlayersMap[key] === true)
+        .map(Number)
+        .sort((a, b) => a - b);
+
+    if (activeIndices.length === 0) return;
+
+    const resetPlayers = activeIndices.map(idx => {
+        const p = gameState.players[idx];
+        return {
+            id: p ? p.id : ('player_' + Math.random().toString(36).substr(2, 9)),
+            name: p ? p.name : `Игрок ${idx + 1}`,
+            totalScore: 0,
+            bolts: 0,
+            barrelAttempts: 0,
+            hasEnteredGame: false,
+            reaction: null
+        };
+    });
+
+    const newMyIndex = activeIndices.indexOf(myPlayerIndex);
+    if (newMyIndex !== -1) {
+        myPlayerIndex = newMyIndex;
+        setupPresence(myPlayerIndex);
+    }
 
     const resetState = {
         gameStarted: true,
@@ -959,7 +971,12 @@ function restartGame() {
         selectedDiceIds: [false, false, false, false, false]
     };
 
-    // Отправляем полное новое состояние в Firebase
+    const newActivePlayers = {};
+    resetPlayers.forEach((_, index) => {
+        newActivePlayers[index] = true;
+    });
+
+    database.ref(`rooms/${roomID}/activePlayers`).set(newActivePlayers);
     gameRef.set(resetState).then(() => {
         showToast("Игра успешно перезапущена!", "success");
     }).catch(err => {
