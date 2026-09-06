@@ -596,8 +596,8 @@ function rollAll() {
                 message = `Ноль очков! Вы получаете БОЛТ.`;
                 if (activePlayer.bolts >= 3) {
                     activePlayer.bolts = 0;
-                    activePlayer.totalScore -= 100;
-                    message += ` Три болта превращаются в минус 100 очков!`;
+                    activePlayer.totalScore -= 50;
+                    message += ` Три болта превращаются в минус 50 очков!`;
                 }
             }
 
