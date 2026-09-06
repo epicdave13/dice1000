@@ -832,9 +832,9 @@ function updateUI() {
 
     const getBoltStars = (bolts = 0) => {
         if (bolts === 0) return "<span style='color:rgba(255,255,255,0.2)'>✕ ✕ ✕</span>";
-        if (bolts === 1) return "<span class='bolt-indicator'>⚡</span> <span style='color:rgba(255,255,255,0.2)'>✕ ✕</span>";
-        if (bolts === 2) return "<span class='bolt-indicator'>⚡ ⚡</span> <span style='color:rgba(255,255,255,0.2)'>✕</span>";
-        return "<span class='bolt-indicator'>⚡ ⚡ ⚡</span>";
+        if (bolts === 1) return "<span class='bolt-indicator'>🔩 </span> <span style='color:rgba(255,255,255,0.2)'>✕ ✕</span>";
+        if (bolts === 2) return "<span class='bolt-indicator'>🔩🔩 </span> <span style='color:rgba(255,255,255,0.2)'>✕</span>";
+        return "<span class='bolt-indicator'>🔩🔩🔩</span>";
     };
 
     const getStatusBadge = (playerObj, playerIdx) => {
