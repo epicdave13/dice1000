@@ -114,7 +114,7 @@ if (!document.getElementById('game-ui')) {
     uiDiv.style.flexDirection = 'column';
     uiDiv.style.alignItems = 'center';
     uiDiv.innerHTML = `
-        <div id="room-link-info" style="font-size:14px; background:#00000040; padding:12px; border-radius:8px; margin-bottom:15px; text-align:center; width:90%; max-width:400px; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:8px;">
+        <div id="room-link-info" style="font-size:14px; background:#00000040; padding:12px; border-radius:8px; text-align:center; width:90%; max-width:400px; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:8px;">
             <div>Комната: <b>${roomID}</b></div>
             <button onclick="copyRoomLink()" class="btn" style="padding:6px 14px; font-size:13px; background:#3498db; margin:0;">
                 Скопировать ссылку
