@@ -239,7 +239,7 @@ h1 {
 .bolt-indicator {
     color: #e74c3c;
     font-weight: bold;
-    letter-spacing: 2px;
+    letter-spacing: -3px;
 }
 
 .status-badge {
