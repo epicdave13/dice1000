@@ -125,7 +125,7 @@ if (!document.getElementById('game-ui')) {
             <tbody id="score-table-body"></tbody>
         </table>
         <div id="player-turn" style="font-weight:bold; color:#f1c40f; margin: 15px 0 5px 0; font-size:20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Подключение...</div>
-        <div id="turn-status" style="color:#2ecc71; font-size: 18px; font-weight: bold; margin-bottom: 20px;">Очки за ход: 0</div>
+        <div id="turn-status" style="color:#2ecc71; font-size: 18px; font-weight: bold; margin-bottom: 5px;">Очки за ход: 0</div>
     `;
     document.body.prepend(uiDiv);
 }
@@ -137,7 +137,7 @@ if (!document.getElementById('bank-btn')) {
         bankBtn.id = 'bank-btn';
         bankBtn.className = 'btn';
         bankBtn.style.backgroundColor = '#2ecc71';
-        bankBtn.style.marginTop = '10px';
+        bankBtn.style.marginTop = '5px';
         bankBtn.innerText = 'ЗАПИСАТЬ ОЧКИ';
         bankBtn.onclick = bankScore;
         rollBtn.parentNode.appendChild(bankBtn);
