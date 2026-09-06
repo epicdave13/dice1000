@@ -36,9 +36,9 @@ if (!myPlayerId) {
 
 let savedName = prompt("Введите ваше имя:") || "";
 if (!savedName.trim()) {
-    savedName = "Игрок " + Math.floor(Math.random() * 100);
+    savedName = "Noname" + Math.floor(Math.random() * 100);
 }
-savedName = savedName.trim();
+savedName = savedName.trim().slice(0,8);
 
 let myPlayerIndex = null;
 
